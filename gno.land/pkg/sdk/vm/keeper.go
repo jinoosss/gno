@@ -423,7 +423,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	gnostore := vm.getGnoTransactionStore(ctx)
 	chainDomain := vm.getChainDomainParam(ctx)
 
-	memPkg.Type = gno.MPUserAll
+	memPkg.Type = gno.MPUserAll.String()
 
 	// Validate arguments.
 	if creator.IsZero() {
@@ -722,7 +722,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	chainDomain := vm.getChainDomainParam(ctx)
 	params := vm.GetParams(ctx)
 
-	memPkg.Type = gno.MPUserProd
+	memPkg.Type = gno.MPUserProd.String()
 
 	// coerce path to right one.
 	// the path in the message must be "" or the following path.

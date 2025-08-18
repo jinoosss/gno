@@ -835,7 +835,7 @@ func (ds *defaultStore) AddMemPackage(mpkg *std.MemPackage, mptype MemPackageTyp
 			bm.StopStore(size)
 		}()
 	}
-	mpkgtype := mpkg.Type.(MemPackageType)
+	mpkgtype := MemPackageType(mpkg.Type)
 	if !mpkgtype.IsStorable() {
 		panic(fmt.Sprintf("mempackage type is not storable: %v", mpkgtype))
 	}

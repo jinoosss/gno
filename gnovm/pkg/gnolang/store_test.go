@@ -27,7 +27,7 @@ func TestTransactionStore(t *testing.T) {
 		Output:  io.Discard,
 	})
 	_, pv := m.RunMemPackage(&std.MemPackage{
-		Type: MPUserProd,
+		Type: MPUserProd.String(),
 		Name: "hello",
 		Path: "gno.vm/t/hello",
 		Files: []*std.MemFile{
@@ -78,7 +78,7 @@ func TestCopyFromCachedStore(t *testing.T) {
 		Base:    BoolType,
 	})
 	cachedStore.AddMemPackage(&std.MemPackage{
-		Type: MPStdlibAll,
+		Type: MPStdlibAll.String(),
 		Name: "math",
 		Path: "math",
 		Files: []*std.MemFile{
@@ -141,7 +141,7 @@ func TestFindByPrefix(t *testing.T) {
 	// Add stdlibs
 	for _, lib := range stdlibs {
 		store.AddMemPackage(&std.MemPackage{
-			Type: MPStdlibAll,
+			Type: MPStdlibAll.String(),
 			Name: lib,
 			Path: lib,
 			Files: []*std.MemFile{
@@ -154,7 +154,7 @@ func TestFindByPrefix(t *testing.T) {
 	for _, pkg := range pkgs {
 		name := path.Base(pkg)
 		store.AddMemPackage(&std.MemPackage{
-			Type: MPUserProd,
+			Type: MPUserProd.String(),
 			Name: name,
 			Path: pkg,
 			Files: []*std.MemFile{

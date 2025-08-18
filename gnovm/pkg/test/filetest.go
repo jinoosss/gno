@@ -274,7 +274,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 	// don't get the parent store dirty.
 	abortOnError := true
 	if err := LoadImports(opts.TestStore, &std.MemPackage{
-		Type: gno.MPFiletests,
+		Type: gno.MPFiletests.String(),
 		Name: string(pkgName),
 		Path: pkgPath,
 		Files: []*std.MemFile{
@@ -327,7 +327,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		}
 		// Construct mem package for single filetest.
 		mpkg := &std.MemPackage{
-			Type: mptype,
+			Type: mptype.String(),
 			Name: string(pkgName),
 			Path: pkgPath,
 			Files: []*std.MemFile{
@@ -363,7 +363,7 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		// Save package using realm crawl procedure.
 		// Realms are always MPUserProd because they need to be stored
 		mpkg := &std.MemPackage{
-			Type: gno.MPUserProd,
+			Type: gno.MPUserProd.String(),
 			Name: string(pkgName),
 			Path: pkgPath,
 			Files: []*std.MemFile{

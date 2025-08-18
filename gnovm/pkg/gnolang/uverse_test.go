@@ -188,7 +188,7 @@ func BenchmarkGnoPrintln(b *testing.B) {
 					}
 				}`
 	m.RunMemPackage(&std.MemPackage{
-		Type: MPUserProd,
+		Type: MPUserProd.String(),
 		Name: "p",
 		Path: "exmaple.com/r/p",
 		Files: []*std.MemFile{
@@ -285,7 +285,7 @@ func TestGnoPrintAndPrintln(t *testing.T) {
 			program := `package p
 				func main() {` + tt.srcArgs + "\n}"
 			m.RunMemPackage(&std.MemPackage{
-				Type: MPUserProd,
+				Type: MPUserProd.String(),
 				Name: "p",
 				Path: "exmaple.com/r/p",
 				Files: []*std.MemFile{

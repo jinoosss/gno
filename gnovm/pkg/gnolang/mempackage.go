@@ -322,7 +322,7 @@ func (mpfilter MemPackageFilter) FilterMemPackage(mpkg *std.MemPackage) *std.Mem
 		Name:  mpkg.Name,
 		Path:  mpkg.Path,
 		Files: nil,
-		Type:  mpfilter.FilterType(mpkg.Type.(MemPackageType)),
+		Type:  mpfilter.FilterType(MemPackageType(mpkg.Type)).String(),
 		Info:  mpkg.Info,
 	}
 	for _, mfile := range mpkg.Files {
@@ -423,6 +423,10 @@ const (
 	MPUserIntegration   MemPackageType = "MPUserIntegration"   // no stdlibs, only integration tests.
 	MPFiletests         MemPackageType = "MPFiletests"         // filetests only, regardless of file name (tests/files).
 )
+
+func (mptype MemPackageType) String() string {
+	return string(mptype)
+}
 
 // NOTE: MPAny* are meant to be decided as MPStdlib* or MPUser*.
 func (mptype MemPackageType) IsAny() bool {
@@ -723,7 +727,7 @@ func ReadMemPackageFromList(list []string, pkgPath string, mptype MemPackageType
 	mptype.Validate(pkgPath)
 	mptype = mptype.Decide(pkgPath)
 	mpkg := &std.MemPackage{
-		Type: mptype,
+		Type: mptype.String(),
 		Path: pkgPath,
 	}
 	var pkgName Name          // normal file pkg name
@@ -856,7 +860,7 @@ func MustReadMemPackageFromList(list []string, pkgPath string, mptype MemPackage
 // If one of the files has a different package name than mpkg.Name,
 // or [ParseFile] returns an error, ParseMemPackageAsType panics.
 func ParseMemPackage(mpkg *std.MemPackage) (fset *FileSet) {
-	return ParseMemPackageAsType(mpkg, mpkg.Type.(MemPackageType))
+	return ParseMemPackageAsType(mpkg, MemPackageType(mpkg.Type))
 }
 
 // ParseMemPackageAsType executes [ParseFile] on each file of the mpkg, with
@@ -868,7 +872,7 @@ func ParseMemPackage(mpkg *std.MemPackage) (fset *FileSet) {
 func ParseMemPackageAsType(mpkg *std.MemPackage, mptype MemPackageType) (fset *FileSet) {
 	pkgPath := mpkg.Path
 	mptype.Validate(pkgPath)
-	mpkg.Type.(MemPackageType).AssertCompatible(mpkg.Path, mptype)
+	MemPackageType(mpkg.Type).AssertCompatible(mpkg.Path, mptype)
 	fset = &FileSet{}
 	var errs error
 	for _, mfile := range mpkg.Files {
@@ -966,7 +970,7 @@ func ParseMemPackageTests(mpkg *std.MemPackage) (tset, itset *FileSet, itfiles, 
 
 // Validates a non-stdlib production mempackage with no tests.
 func ValidateMemPackage(mpkg *std.MemPackage) error {
-	mptype := mpkg.Type.(MemPackageType)
+	mptype := MemPackageType(mpkg.Type)
 	mptype.Validate(mpkg.Path)
 	if mptype.IsAny() {
 		return errors.New("undecided mptype")
@@ -998,7 +1002,7 @@ func ValidateMemPackageAny(mpkg *std.MemPackage) (errs error) {
 		return fmt.Errorf("invalid package/realm path %q", mpkg.Path)
 	}
 	// Check mpkg.Type/mptype.
-	mptype := mpkg.Type.(MemPackageType)
+	mptype := MemPackageType(mpkg.Type)
 	mptype.Validate(mpkg.Path)
 	// ...
 	goodFileXtns := goodFileXtns

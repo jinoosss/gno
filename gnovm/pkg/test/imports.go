@@ -124,7 +124,7 @@ func StoreWithOptions(
 		// (pkg/test/test.go Test() will filter for MPFTest and store
 		// the MP*Test mpkg in the store before running tests, so
 		// MPUserProd is all we need here.)
-		mptype := mpkg.Type.(gno.MemPackageType)
+		mptype := gno.MemPackageType(mpkg.Type)
 		if !mptype.IsProd() {
 			// For non-prod packages (like test packages during linting),
 			// skip processing and return nil
@@ -207,7 +207,7 @@ func StoreWithOptions(
 				pn = pv.GetPackageNode(opts.SourceStore)
 				mp := opts.SourceStore.GetMemPackage(pkgPath)
 				if mp != nil {
-					store.AddMemPackage(mp, mp.Type.(gno.MemPackageType))
+					store.AddMemPackage(mp, gno.MemPackageType(mp.Type))
 				}
 			} else {
 				pn = nil

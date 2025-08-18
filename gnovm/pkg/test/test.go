@@ -284,7 +284,7 @@ func Test(mpkg *std.MemPackage, fsDir string, opts *TestOptions) error {
 				mpkgType = gno.MPUserIntegration
 			}
 			itmpkg := &std.MemPackage{
-				Type:  mpkgType,
+				Type:  mpkgType.String(),
 				Name:  mpkg.Name + "_test",
 				Path:  mpkg.Path + "_test",
 				Files: itfiles,

@@ -19,7 +19,7 @@ func TestMemPackage_Validate(t *testing.T) {
 		{
 			"correct",
 			&std.MemPackage{
-				Type:  MPUserProd,
+				Type:  MPUserProd.String(),
 				Name:  "hey",
 				Path:  "example.com/r/hey",
 				Files: heyPackageFiles,
@@ -30,7 +30,7 @@ func TestMemPackage_Validate(t *testing.T) {
 		{
 			"unsorted",
 			&std.MemPackage{
-				Type:  MPUserProd,
+				Type:  MPUserProd.String(),
 				Name:  "hey",
 				Path:  "example.com/r/path/to/pkg",
 				Files: []*std.MemFile{{Name: "b.gno", Body: "package hey"}, {Name: "a.gno", Body: "package hey"}},
@@ -41,7 +41,7 @@ func TestMemPackage_Validate(t *testing.T) {
 		{
 			"duplicate",
 			&std.MemPackage{
-				Type:  MPUserProd,
+				Type:  MPUserProd.String(),
 				Name:  "hey",
 				Path:  "example.com/r/path/to/pkg",
 				Files: []*std.MemFile{{Name: "a.gno", Body: "package hey"}, {Name: "a.gno", Body: "package hey"}},
@@ -52,7 +52,7 @@ func TestMemPackage_Validate(t *testing.T) {
 		{
 			"valid_long_path",
 			&std.MemPackage{
-				Type:  MPUserProd,
+				Type:  MPUserProd.String(),
 				Name:  "hey",
 				Path:  "example.com/r/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/long/path",
 				Files: heyPackageFiles,
@@ -63,7 +63,7 @@ func TestMemPackage_Validate(t *testing.T) {
 		{
 			"invalid_path_length",
 			&std.MemPackage{
-				Type:  MPUserProd,
+				Type:  MPUserProd.String(),
 				Name:  "hey",
 				Path:  "example.com/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/long/path",
 				Files: heyPackageFiles,
@@ -74,7 +74,7 @@ func TestMemPackage_Validate(t *testing.T) {
 		{
 			"invalid_path",
 			&std.MemPackage{
-				Type: MPUserProd,
+				Type: MPUserProd.String(),
 				Name: "hey",
 				// user package path for MPUserProd is more restricted. It starts with singl letter
 				Path:  "example.com/path/def",
@@ -86,7 +86,7 @@ func TestMemPackage_Validate(t *testing.T) {
 		{
 			"invalid_empty_path",
 			&std.MemPackage{
-				Type:  MPUserProd,
+				Type:  MPUserProd.String(),
 				Name:  "hey",
 				Path:  "example.com/r/path//def",
 				Files: heyPackageFiles,
@@ -97,7 +97,7 @@ func TestMemPackage_Validate(t *testing.T) {
 		{
 			"invalid_trailing_slash",
 			&std.MemPackage{
-				Type:  MPUserProd,
+				Type:  MPUserProd.String(),
 				Name:  "hey",
 				Path:  "example.com/p/path/abc/def/",
 				Files: heyPackageFiles,
@@ -108,7 +108,7 @@ func TestMemPackage_Validate(t *testing.T) {
 		{
 			"invalid_uppercase",
 			&std.MemPackage{
-				Type:  MPUserProd,
+				Type:  MPUserProd.String(),
 				Name:  "hey",
 				Path:  "example.com/PaTh/abc/def",
 				Files: heyPackageFiles,
@@ -119,7 +119,7 @@ func TestMemPackage_Validate(t *testing.T) {
 		{
 			"invalid_number",
 			&std.MemPackage{
-				Type:  MPUserProd,
+				Type:  MPUserProd.String(),
 				Name:  "hey",
 				Path:  "example.com/1Path/abc/def",
 				Files: heyPackageFiles,
@@ -131,7 +131,7 @@ func TestMemPackage_Validate(t *testing.T) {
 		{
 			"special_character",
 			&std.MemPackage{
-				Type:  MPUserProd,
+				Type:  MPUserProd.String(),
 				Name:  "hey",
 				Path:  "example.com/p@th/abc/def",
 				Files: heyPackageFiles,
@@ -143,7 +143,7 @@ func TestMemPackage_Validate(t *testing.T) {
 		{
 			"special_character_2",
 			&std.MemPackage{
-				Type:  MPUserProd,
+				Type:  MPUserProd.String(),
 				Name:  "hey",
 				Path:  "example.com/p&th/abc/def",
 				Files: heyPackageFiles,
@@ -155,7 +155,7 @@ func TestMemPackage_Validate(t *testing.T) {
 		{
 			"leading_underscore",
 			&std.MemPackage{
-				Type:  MPUserProd,
+				Type:  MPUserProd.String(),
 				Name:  "hey",
 				Path:  "gno.land/r/path/_path",
 				Files: heyPackageFiles,
@@ -166,7 +166,7 @@ func TestMemPackage_Validate(t *testing.T) {
 		{
 			"trailing_underscore",
 			&std.MemPackage{
-				Type:  MPUserProd,
+				Type:  MPUserProd.String(),
 				Name:  "hey",
 				Path:  "gno.land/r/path/path_",
 				Files: heyPackageFiles,
@@ -177,7 +177,7 @@ func TestMemPackage_Validate(t *testing.T) {
 		{
 			"between_underscore",
 			&std.MemPackage{
-				Type:  MPUserProd,
+				Type:  MPUserProd.String(),
 				Name:  "hey",
 				Path:  "gno.land/r/path/p_ath",
 				Files: heyPackageFiles,
@@ -188,7 +188,7 @@ func TestMemPackage_Validate(t *testing.T) {
 		{
 			"invalid_underscore_1",
 			&std.MemPackage{
-				Type:  MPUserProd,
+				Type:  MPUserProd.String(),
 				Name:  "hey",
 				Path:  "gno.land/r/path/_",
 				Files: heyPackageFiles,
@@ -199,7 +199,7 @@ func TestMemPackage_Validate(t *testing.T) {
 		{
 			"invalid_underscore_2",
 			&std.MemPackage{
-				Type:  MPUserProd,
+				Type:  MPUserProd.String(),
 				Name:  "hey",
 				Path:  "gno.land/r/path/_/_",
 				Files: heyPackageFiles,
@@ -210,7 +210,7 @@ func TestMemPackage_Validate(t *testing.T) {
 		{
 			"invalid_underscore_3",
 			&std.MemPackage{
-				Type:  MPUserProd,
+				Type:  MPUserProd.String(),
 				Name:  "hey",
 				Path:  "gno.land/r/path/__/path",
 				Files: heyPackageFiles,
@@ -221,7 +221,7 @@ func TestMemPackage_Validate(t *testing.T) {
 		{
 			"futureproof_x", // XXX: we currently accept mempackages with any single-letter path, meaning that we need another layer of validation later.
 			&std.MemPackage{
-				Type:  MPUserProd,
+				Type:  MPUserProd.String(),
 				Name:  "hey",
 				Path:  "gno.land/x/path/path",
 				Files: heyPackageFiles,
@@ -232,7 +232,7 @@ func TestMemPackage_Validate(t *testing.T) {
 		{
 			"custom_domain",
 			&std.MemPackage{
-				Type:  MPUserProd,
+				Type:  MPUserProd.String(),
 				Name:  "hey",
 				Path:  "github.com/p/path/path",
 				Files: heyPackageFiles,
@@ -243,7 +243,7 @@ func TestMemPackage_Validate(t *testing.T) {
 		{
 			"valid_p_path",
 			&std.MemPackage{
-				Type:  MPUserProd,
+				Type:  MPUserProd.String(),
 				Name:  "hey",
 				Path:  "gno.land/p/path/path",
 				Files: heyPackageFiles,
@@ -254,7 +254,7 @@ func TestMemPackage_Validate(t *testing.T) {
 		{
 			"valid_r_path",
 			&std.MemPackage{
-				Type:  MPUserProd,
+				Type:  MPUserProd.String(),
 				Name:  "hey",
 				Path:  "gno.land/r/path/path",
 				Files: heyPackageFiles,
@@ -265,7 +265,7 @@ func TestMemPackage_Validate(t *testing.T) {
 		{
 			"valid_with_gno_toml",
 			&std.MemPackage{
-				Type: MPUserProd,
+				Type: MPUserProd.String(),
 				Name: "hey",
 				Path: "gno.land/r/path/path",
 				Files: []*std.MemFile{
@@ -280,7 +280,7 @@ func TestMemPackage_Validate(t *testing.T) {
 		{
 			"valid_with_gno_toml_and_readme",
 			&std.MemPackage{
-				Type: MPUserProd,
+				Type: MPUserProd.String(),
 				Name: "hey",
 				Path: "gno.land/r/path/path",
 				Files: []*std.MemFile{

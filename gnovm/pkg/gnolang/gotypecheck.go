@@ -36,7 +36,7 @@ func gnoBuiltinsMemPackage(pkgPath string) *std.MemPackage {
 	}
 	switch pkgPath {
 	case "gnobuiltins/gno0p9": // 0.9
-		mpkg = &std.MemPackage{Type: MPStdlibProd, Name: "gno0p9", Path: "gnobuiltins/gno0p9"}
+		mpkg = &std.MemPackage{Type: MPStdlibProd.String(), Name: "gno0p9", Path: "gnobuiltins/gno0p9"}
 		mpkg.SetFile("gno0p9.gno", `package gno0p9
 type realm interface {
     Address() address
@@ -121,7 +121,7 @@ type gimpGetterWrapper struct {
 func (gw gimpGetterWrapper) GetMemPackage(pkgPath string) *std.MemPackage {
 	if strings.HasPrefix(pkgPath, "gnobuiltins/") {
 		return gnoBuiltinsMemPackage(pkgPath)
-	} else if gw.mpkg != nil && gw.mpkg.Type != MPFiletests && gw.mpkg.Path == pkgPath {
+	} else if gw.mpkg != nil && gw.mpkg.Type != string(MPFiletests) && gw.mpkg.Path == pkgPath {
 		return gw.mpkg
 	} else {
 		return gw.getter.GetMemPackage(pkgPath)
@@ -597,7 +597,7 @@ func GoParseMemPackage(mpkg *std.MemPackage) (
 			continue
 		}
 		// Ignore _test/_filetest.gno files depending.
-		switch mpkg.Type {
+		switch MemPackageType(mpkg.Type) {
 		case MPAnyAll:
 			panic("undefined MPAnyAll")
 		case MPUserAll, MPStdlibAll, MPFiletests:
@@ -633,12 +633,12 @@ func GoParseMemPackage(mpkg *std.MemPackage) (
 		}
 		// The *ast.File passed all filters.
 		if strings.HasSuffix(file.Name, "_filetest.gno") ||
-			mpkg.Type == MPFiletests {
+			MemPackageType(mpkg.Type) == MPFiletests {
 			tgofs = append(tgofs, gof)
 			allgofs = append(allgofs, gof)
 		} else if strings.HasSuffix(file.Name, "_test.gno") &&
 			strings.HasSuffix(gof.Name.String(), "_test") {
-			switch mpkg.Type {
+			switch MemPackageType(mpkg.Type) {
 			case MPAnyAll:
 				panic("undefined MPAnyAll")
 			case MPUserProd, MPStdlibProd:
@@ -669,10 +669,10 @@ func GoParseMemPackage(mpkg *std.MemPackage) (
 	}
 	// END processing all files.
 	// Sanity check before returning.
-	if mpkg.Type.(MemPackageType).IsProd() && (len(_gofs) > 0 || len(tgofs) > 0) {
+	if MemPackageType(mpkg.Type).IsProd() && (len(_gofs) > 0 || len(tgofs) > 0) {
 		panic("unexpected test files from GoParseMemPackage()")
 	}
-	if mpkg.Type.(MemPackageType).IsTest() && (len(_gofs) > 0 || len(tgofs) > 0) {
+	if MemPackageType(mpkg.Type).IsTest() && (len(_gofs) > 0 || len(tgofs) > 0) {
 		// same as above, because the non-xxx_test *_test.gno files are
 		// part of gofs, not _gofs; for testing purposes those test
 		// files extend the original package when imported by xxx_test

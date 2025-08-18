@@ -198,7 +198,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 						SkipPackage: true,
 					})
 					// Use the actual type of the filtered package
-					tmpkgType := tmpkg.Type.(gno.MemPackageType)
+					tmpkgType := gno.MemPackageType(tmpkg.Type)
 					m2.Store.AddMemPackage(tmpkg, tmpkgType)
 					return m2.PreprocessFiles(tmpkg.Name, tmpkg.Path,
 						gno.ParseMemPackageAsType(tmpkg, tmpkgType), true, true, "")

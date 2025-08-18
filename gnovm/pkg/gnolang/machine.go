@@ -251,7 +251,7 @@ func (m *Machine) RunMemPackageWithOverrides(mpkg *std.MemPackage, save bool) (*
 
 func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*PackageNode, *PackageValue) {
 	// validate mpkg.Type.
-	mptype := mpkg.Type.(MemPackageType)
+	mptype := MemPackageType(mpkg.Type)
 	if save && !mptype.IsStorable() {
 		panic(fmt.Sprintf("mempackage type must be storable, but got %v", mptype))
 	}
@@ -297,7 +297,7 @@ func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool) (*Pa
 	if save {
 		m.resavePackageValues(throwaway)
 		// store mempackage; we already validated type.
-		m.Store.AddMemPackage(mpkg, mpkg.Type.(MemPackageType))
+		m.Store.AddMemPackage(mpkg, MemPackageType(mpkg.Type))
 		if throwaway != nil {
 			m.Realm = nil
 		}
