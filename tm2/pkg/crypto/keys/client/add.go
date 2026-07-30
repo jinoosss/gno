@@ -64,6 +64,7 @@ func NewAddCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
 		NewAddMultisigCmd(cfg, io),
 		NewAddLedgerCmd(cfg, io),
 		NewAddBech32Cmd(cfg, io),
+		NewAddValidatorCmd(cfg, io),
 	)
 
 	return cmd
