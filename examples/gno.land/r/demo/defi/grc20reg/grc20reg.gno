@@ -2,7 +2,6 @@ package grc20reg
 
 import (
 	"chain"
-	"strings"
 
 	"gno.land/p/demo/tokens/grc20"
 	"gno.land/p/moul/md"
@@ -14,28 +13,23 @@ import (
 )
 
 var (
-	registry    = avl.NewTree() // tokenKey (fqname rlmPath.slug) -> *Token
-	idGenerator *identifier.Generator
+	registry = avl.NewTree() // tokenKey (fqname rlmPath.slug) -> *Token
 )
 
+// idGenerator (declared in issuer.gno) is the registry's private, persistent id
+// generator. It is bound to grc20reg here and never handed out.
 func init(cur realm) {
 	idGenerator = identifier.NewGenerator(0, cur)
 }
 
-// IdentifierGenerator returns the registry's canonical id generator.
-// Pass it to grc20.NewToken so the resulting id is issued by grc20reg and accepted by Register.
-func IdentifierGenerator() *identifier.Generator {
-	return idGenerator
-}
-
 // Register records token under a tokenKey (fqname rlmPath.slug) and returns
 // that key. The tokenKey is a human-chosen alias for lookup and is a distinct
-// value from Token.ID() — the unforgeable, generator-issued identifier emitted
+// value from Token.ID() — the unforgeable, registry-issued identifier emitted
 // in the token's events. A realm may register one token under several slugs
 // (aliases); re-registering the same slug is rejected. The register event
 // carries both so consumers can map tokenKey <-> tokenID:
 //
-//	Token, ledger := grc20.NewToken(name, symbol, decimals, grc20reg.IdentifierGenerator(), cur)
+//	Token, ledger := grc20.NewToken(name, symbol, decimals, grc20reg.Issuer(), cur)
 //	key := grc20reg.Register(cross(cur), Token, "myslug") // key == rlmPath.myslug
 func Register(cur realm, token *grc20.Token, slug string) string {
 	if token == nil {
@@ -48,15 +42,13 @@ func Register(cur realm, token *grc20.Token, slug string) string {
 
 	rlmPath := cur.Previous().PkgPath()
 
-	// Token.ID() == rlmPath + "." + symbol + "." + <GeneratorID>;
-	// verify the token originates from the registering realm.
-	if !strings.HasPrefix(token.ID(), rlmPath+".") {
-		panic("grc20reg: token must be registered from its own realm")
-	}
-
-	// verify the token id must have been issued by the registry's own generator.
-	if token.IdentifierPath() != idGenerator.PackagePath() {
-		panic("grc20reg: token id not issued by the registry generator")
+	// Verify the token id was minted by this registry, for this same realm, from
+	// the registry's own record (issued) — not from anything the token
+	// self-reports. This ties the token to the trusted issuer and simultaneously
+	// proves it is being registered from its own realm (issuedTo == rlmPath).
+	owner, ok := IssuedTo(token.ID())
+	if !ok || owner != rlmPath {
+		panic("grc20reg: token id not issued by this registry for the registering realm")
 	}
 
 	// construct the token key (fqname rlmPath.slug)
