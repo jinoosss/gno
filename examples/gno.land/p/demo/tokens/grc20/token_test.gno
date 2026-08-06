@@ -3,6 +3,7 @@ package grc20
 import (
 	"errors"
 	"math"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -10,20 +11,26 @@ import (
 	"gno.land/p/nt/uassert/v0"
 	"gno.land/p/nt/ufmt/v0"
 	"gno.land/p/nt/urequire/v0"
-	"gno.land/p/onbloc/identifier"
 )
+
+// testIssuer is a minimal grc20.Issuer for unit tests: it mints ids inside the
+// creating realm's namespace with a per-instance counter, mirroring what a
+// registry does without importing one. Sharing one testIssuer across calls
+// yields distinct, sequential ids.
+type testIssuer struct{ seq int }
+
+func (ti *testIssuer) IssueID(cur realm, symbol string) string {
+	ti.seq++
+	return cur.Previous().PkgPath() + "." + symbol + "." + strconv.Itoa(ti.seq)
+}
 
 // newTestToken constructs a Token. The IIFE same-realm cross
 // promotes the test's EOA-origin cur into a fresh /p/grc20
 // CodeRealm cur so NewToken's IsCurrent + non-empty rlm.PkgPath()
-// checks pass. A fresh generator is bound inside that same frame; tests that
-// need several tokens with distinct IDs must share one generator within a
-// single frame (see TestNewTokenAllowsDuplicateSymbolInSameRealm) because a
-// /p/ package cannot hold a mutable generator across calls.
+// checks pass. A fresh test issuer is bound inside that same frame.
 func newTestToken(name, symbol string, decimals int, rlm realm) (tok *Token, adm *PrivateLedger) {
 	func(cur realm) {
-		gen := identifier.NewGenerator(0, cur)
-		tok, adm = NewToken(name, symbol, decimals, gen, cur)
+		tok, adm = NewToken(name, symbol, decimals, &testIssuer{}, cur)
 	}(cross(rlm))
 	return
 }
@@ -36,16 +43,16 @@ func TestTestImpl(cur realm, t *testing.T) {
 func TestNewTokenAllowsDuplicateSymbolInSameRealm(cur realm, t *testing.T) {
 	holder := testutils.TestAddress("holder")
 
-	// One generator shared within a single frame gives the two same-symbol
+	// One issuer shared within a single frame gives the two same-symbol
 	// tokens distinct, sequential IDs.
 	var (
 		first, second             *Token
 		firstLedger, secondLedger *PrivateLedger
 	)
 	func(cur realm) {
-		gen := identifier.NewGenerator(0, cur)
-		first, firstLedger = NewToken("Same", "DUP", 6, gen, cur)
-		second, secondLedger = NewToken("Same", "DUP", 6, gen, cur)
+		iss := &testIssuer{}
+		first, firstLedger = NewToken("Same", "DUP", 6, iss, cur)
+		second, secondLedger = NewToken("Same", "DUP", 6, iss, cur)
 	}(cross(cur))
 
 	urequire.True(t, first.ID() != second.ID(), "duplicate symbols should not force duplicate IDs")

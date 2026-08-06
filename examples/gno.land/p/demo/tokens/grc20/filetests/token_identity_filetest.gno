@@ -4,23 +4,34 @@ package grc20identity
 
 import (
 	"chain"
+	"strconv"
 
 	"gno.land/p/demo/tokens/grc20"
-	"gno.land/p/onbloc/identifier"
 )
 
-var tokenIDGen *identifier.Generator
+// seqIssuer is a local grc20.Issuer that mints ids in the creating realm's
+// namespace with a counter. A real deployment passes grc20reg.Issuer(); here a
+// local one keeps the filetest deterministic. The point of this test is twofold:
+// two same-symbol tokens get distinct ids, and — regardless of the issuer — every
+// event is emitted under grc20's own pkg_path, so the token stays a plain,
+// registry-agnostic grc20.
+type seqIssuer struct{ n int }
+
+func (s *seqIssuer) IssueID(cur realm, symbol string) string {
+	s.n++
+	return cur.Previous().PkgPath() + "." + symbol + "." + strconv.Itoa(s.n)
+}
+
+var issuer = &seqIssuer{}
 
 func main(cur realm) {
-	tokenIDGen = identifier.NewGenerator(0, cur)
-
 	first, firstLedger := newToken(cur)
 	second, secondLedger := newToken(cur)
 
-	if first.ID() != "gno.land/r/demo/grc20identity.DUP.8730z7x0xz79m" {
+	if first.ID() != "gno.land/r/demo/grc20identity.DUP.1" {
 		panic("unexpected first token ID: " + first.ID())
 	}
-	if second.ID() != "gno.land/r/demo/grc20identity.DUP.j4eanafzxnc9j" {
+	if second.ID() != "gno.land/r/demo/grc20identity.DUP.2" {
 		panic("unexpected second token ID: " + second.ID())
 	}
 
@@ -33,7 +44,7 @@ func main(cur realm) {
 }
 
 func newToken(cur realm) (*grc20.Token, *grc20.PrivateLedger) {
-	return grc20.NewToken("Same", "DUP", 6, tokenIDGen, cur)
+	return grc20.NewToken("Same", "DUP", 6, issuer, cur)
 }
 
 // Events:
@@ -43,7 +54,7 @@ func newToken(cur realm) (*grc20.Token, *grc20.PrivateLedger) {
 //     "attrs": [
 //       {
 //         "key": "token",
-//         "value": "gno.land/r/demo/grc20identity.DUP.8730z7x0xz79m"
+//         "value": "gno.land/r/demo/grc20identity.DUP.1"
 //       },
 //       {
 //         "key": "from",
@@ -65,7 +76,7 @@ func newToken(cur realm) (*grc20.Token, *grc20.PrivateLedger) {
 //     "attrs": [
 //       {
 //         "key": "token",
-//         "value": "gno.land/r/demo/grc20identity.DUP.8730z7x0xz79m"
+//         "value": "gno.land/r/demo/grc20identity.DUP.1"
 //       },
 //       {
 //         "key": "owner",
@@ -87,7 +98,7 @@ func newToken(cur realm) (*grc20.Token, *grc20.PrivateLedger) {
 //     "attrs": [
 //       {
 //         "key": "token",
-//         "value": "gno.land/r/demo/grc20identity.DUP.j4eanafzxnc9j"
+//         "value": "gno.land/r/demo/grc20identity.DUP.2"
 //       },
 //       {
 //         "key": "from",
@@ -109,7 +120,7 @@ func newToken(cur realm) (*grc20.Token, *grc20.PrivateLedger) {
 //     "attrs": [
 //       {
 //         "key": "token",
-//         "value": "gno.land/r/demo/grc20identity.DUP.j4eanafzxnc9j"
+//         "value": "gno.land/r/demo/grc20identity.DUP.2"
 //       },
 //       {
 //         "key": "owner",

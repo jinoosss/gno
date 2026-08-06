@@ -5,31 +5,33 @@ import (
 	"math"
 	"math/overflow"
 	"strconv"
+	"strings"
 
 	"gno.land/p/nt/ufmt/v0"
-	"gno.land/p/onbloc/identifier"
 )
 
 // NewToken creates a Token whose origRealm is bound to the calling realm.
 // rlm must be the caller's own captured cur (asserted via rlm.IsCurrent()),
 // and rlm.PkgPath() — the calling realm itself — becomes the Token's
-// origRealm. Token.ID() returns origRealm + "." + symbol + "." + gen.NextID()
-// — a short fixed-length GeneratorID code
+// origRealm. Token.ID() returns origRealm + "." + symbol + "." + <issued code>
 // (e.g. "gno.land/r/demo/defi/foo20.FOO.n94thn18fc78c").
 //
-// Because IsCurrent runtime-validates that rlm came from the live
-// crossing frame, origRealm is unforgeable: an external realm cannot
-// fabricate a Token claiming to belong to a different package. For the same
-// reason gen must belong to the calling realm — gen.PackagePath() must equal
-// rlm.PkgPath() — so a realm cannot mint tokens through another realm's
-// generator.
+// Because IsCurrent runtime-validates that rlm came from the live crossing
+// frame, origRealm is unforgeable: an external realm cannot fabricate a Token
+// claiming to belong to a different package.
 //
-// A realm keeps one persistent identifier.Generator, shared by every creation
-// path, so IDs never repeat — even for tokens sharing a symbol.
+// The trailing code is minted by issuer (see the Issuer interface): NewToken
+// calls issuer.IssueID itself, so the caller never holds the counter and cannot
+// replay an id across two tokens. The issued id must fall inside rlm's namespace
+// (prefixed with pkgPath + "."), so Token.ID() keeps its realm-prefixed
+// guarantee no matter which Issuer is supplied — a counterfeit Issuer cannot
+// mint a token claiming another realm's identity. grc20 still emits every event
+// under its own package path regardless of the issuer.
 //
 // If the Token should be discoverable, follow up with
-// grc20reg.Register(cross(cur), Token, slug). The registry key is Token.ID().
-func NewToken(name, symbol string, decimals int, gen *identifier.Generator, rlm realm) (*Token, *PrivateLedger) {
+// grc20reg.Register(cross(cur), Token, slug). The registry keys the token by a
+// human-chosen slug; Token.ID() is the unforgeable identifier.
+func NewToken(name, symbol string, decimals int, issuer Issuer, rlm realm) (*Token, *PrivateLedger) {
 	if !rlm.IsCurrent() {
 		panic(ErrSpoofedRealm)
 	}
@@ -46,17 +48,24 @@ func NewToken(name, symbol string, decimals int, gen *identifier.Generator, rlm 
 	if decimals < 0 || decimals > MaxDecimals {
 		panic(ErrInvalidDecimals)
 	}
-	if gen == nil {
-		panic(ErrNilGenerator)
+	if issuer == nil {
+		panic(ErrNilIssuer)
 	}
+
+	id := issuer.IssueID(cross(rlm), symbol)
+	// The issued id must stay inside the creating realm's namespace, so a
+	// counterfeit Issuer cannot mint a token claiming another realm's identity.
+	if !strings.HasPrefix(id, pkgPath+".") {
+		panic(ErrForeignTokenID)
+	}
+
 	ledger := &PrivateLedger{}
 	token := &Token{
-		id:             pkgPath + "." + symbol + "." + gen.NextID(),
-		identifierPath: gen.PackagePath(),
-		name:           name,
-		symbol:         symbol,
-		decimals:       decimals,
-		ledger:         ledger,
+		id:       id,
+		name:     name,
+		symbol:   symbol,
+		decimals: decimals,
+		ledger:   ledger,
 	}
 	ledger.token = token
 	return token, ledger
@@ -115,11 +124,6 @@ func (tok Token) KnownAccounts() int { return tok.ledger.balances.Size() }
 // It is composed of the original realm, the symbol, and the provided id.
 func (tok *Token) ID() string {
 	return tok.id
-}
-
-// IdentifierPath returns the package path of the generator that issued the token's id.
-func (tok *Token) IdentifierPath() string {
-	return tok.identifierPath
 }
 
 // HasAddr checks if the specified address is a known account in the bank.
