@@ -80,7 +80,7 @@ func registerGRC20Tokens(_ int, rlm realm, t *testing.T, tokenNames []string, to
 	)
 
 	// One persistent generator so every token minted here gets a distinct ID.
-	gen := grc20reg.IdentifierGenerator()
+	gen := grc20reg.Issuer()
 	for _, name := range tokenNames {
 		// Create the token.
 		symbol := strings.ToUpper(name)

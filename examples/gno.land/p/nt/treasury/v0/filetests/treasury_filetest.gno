@@ -5,13 +5,22 @@ package main
 import (
 	"chain"
 	"chain/banker"
+	"strconv"
 	"strings"
 	"testing"
 
 	"gno.land/p/demo/tokens/grc20"
 	"gno.land/p/nt/treasury/v0"
-	"gno.land/p/onbloc/identifier"
 )
+
+// seqIssuer is a local grc20.Issuer mock; a real deployment passes
+// grc20reg.Issuer().
+type seqIssuer struct{ n int }
+
+func (s *seqIssuer) IssueID(cur realm, symbol string) string {
+	s.n++
+	return cur.Previous().PkgPath() + "." + symbol + "." + strconv.Itoa(s.n)
+}
 
 func checkBalanceAndHistory(t *treasury.Treasury, bankerIDs []string) {
 	for _, bankerID := range bankerIDs {
@@ -42,7 +51,7 @@ func main(cur realm) {
 
 	// Define a token and the associated lister.
 	const amount = int64(1000)
-	token, ledger := grc20.NewToken("TestToken", "TEST", 0, identifier.NewGenerator(0, cur), cur)
+	token, ledger := grc20.NewToken("TestToken", "TEST", 0, &seqIssuer{}, cur)
 	ledger.Mint(ownerAddr, amount)
 
 	grc20Lister := func() map[string]*grc20.Token {

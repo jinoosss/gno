@@ -4,21 +4,30 @@ package main
 
 import (
 	"chain"
+	"strconv"
 	"strings"
 
 	"gno.land/p/demo/tokens/grc20"
 	"gno.land/p/nt/treasury/v0"
-	"gno.land/p/onbloc/identifier"
 )
 
 const amount = int64(1000)
 
-var tokenIDGen *identifier.Generator
+// seqIssuer is a local grc20.Issuer mock; a real deployment passes
+// grc20reg.Issuer().
+type seqIssuer struct{ n int }
+
+func (s *seqIssuer) IssueID(cur realm, symbol string) string {
+	s.n++
+	return cur.Previous().PkgPath() + "." + symbol + "." + strconv.Itoa(s.n)
+}
+
+var issuer = &seqIssuer{}
 
 func createToken(_ int, rlm realm, name string, toMint address) *grc20.Token {
 	// Create the token.
 	symbol := strings.ToUpper(name)
-	token, ledger := grc20.NewToken(name, symbol, 0, tokenIDGen, rlm)
+	token, ledger := grc20.NewToken(name, symbol, 0, issuer, rlm)
 
 	// Mint the requested amount.
 	ledger.Mint(toMint, amount)
@@ -27,8 +36,6 @@ func createToken(_ int, rlm realm, name string, toMint address) *grc20.Token {
 }
 
 func main(cur realm) {
-	tokenIDGen = identifier.NewGenerator(0, cur)
-
 	// Define addresses for the sender (owner) and destination.
 	ownerAddr := chain.PackageAddress("gno.land/r/treasury/main")
 	destAddr := chain.PackageAddress("gno.land/r/dest/main")

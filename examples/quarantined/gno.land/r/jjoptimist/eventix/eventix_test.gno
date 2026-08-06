@@ -3,6 +3,7 @@ package eventix
 import (
 	"chain"
 	"chain/runtime"
+	"strconv"
 	"testing"
 
 	"gno.land/p/demo/tokens/grc20"
@@ -11,8 +12,16 @@ import (
 	"gno.land/p/nt/uassert/v0"
 	"gno.land/p/nt/ufmt/v0"
 	"gno.land/p/nt/urequire/v0"
-	"gno.land/p/onbloc/identifier"
 )
+
+// seqIssuer is a local grc20.Issuer mock; a real deployment passes
+// grc20reg.Issuer().
+type seqIssuer struct{ n int }
+
+func (s *seqIssuer) IssueID(cur realm, symbol string) string {
+	s.n++
+	return cur.Previous().PkgPath() + "." + symbol + "." + strconv.Itoa(s.n)
+}
 
 // cur is a zero-value realm used as a placeholder when forwarding to
 // uassert/urequire dispatch helpers that gained an `rlm realm` param.
@@ -98,7 +107,7 @@ func TestBuyTicketWithGRC20(cur realm, t *testing.T) {
 	var token *grc20.Token
 	var ledger *grc20.PrivateLedger
 	func(cur realm) {
-		token, ledger = grc20.NewToken("Test Token", "TEST", 6, identifier.NewGenerator(0, cur), cur)
+		token, ledger = grc20.NewToken("Test Token", "TEST", 6, &seqIssuer{}, cur)
 	}(cross(cur))
 
 	testing.SetRealm(testing.NewUserRealm(alice))
