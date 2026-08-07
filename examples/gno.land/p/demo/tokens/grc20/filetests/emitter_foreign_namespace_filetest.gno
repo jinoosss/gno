@@ -20,8 +20,10 @@ func (f *fakeEmitter) IssueToken(cur realm, symbol string) grc20.TokenEmitter {
 
 type fakeTokenEmitter struct{ id string }
 
-func (f *fakeTokenEmitter) TokenID() string                   { return f.id }
-func (f *fakeTokenEmitter) Emit(kind string, attrs ...string) {}
+func (f *fakeTokenEmitter) TokenID() string { return f.id }
+
+func (f *fakeTokenEmitter) EmitTransfer(from, to address, amount int64)       {}
+func (f *fakeTokenEmitter) EmitApproval(owner, spender address, amount int64) {}
 
 func main(cur realm) {
 	grc20.NewTokenWithEmitter("Fake", "VIC", 6, &fakeEmitter{}, cur)

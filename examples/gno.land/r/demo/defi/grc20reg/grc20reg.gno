@@ -52,10 +52,12 @@ func Register(cur realm, token *grc20.Token, slug string) string {
 	// against its own record of what it handed out (see emitter.gno) rather than
 	// against anything the token says about itself. When it did, the token's
 	// events carry this realm's pkg_path and are attributable; when it did not,
-	// they carry grc20's and two ledgers behind one identifier remain possible.
-	// Either way a consumer learns which it is at registration time.
+	// this realm has no path to vouch for and two ledgers behind one identifier
+	// remain possible. Either way a consumer learns which it is at registration
+	// time — and EmitterPath answers the same question later, for one that was
+	// not listening.
 	emitterPath := ""
-	if to, ok := IssuedTo(token.ID()); ok && to == rlmPath {
+	if issuedHere(token.ID(), rlmPath) {
 		emitterPath = cur.PkgPath()
 	}
 
@@ -116,6 +118,14 @@ func Render(path string) string {
 		s += ufmt.Sprintf("- realm: %s\n", rlmLink)
 		s += ufmt.Sprintf("- decimals: %d\n", token.GetDecimals())
 		s += ufmt.Sprintf("- total supply: %d\n", token.TotalSupply())
+		// Whether this token's events are attributable, and to what. A consumer
+		// filters on the pkg_path below; a token this registry did not issue
+		// has none it can vouch for — see emitter.gno.
+		if emitterPath, ok := EmitterPath(key); ok {
+			s += "- events emitted by: " + md.InlineCode(emitterPath) + "\n"
+		} else {
+			s += "- events emitted by: not issued by this registry\n"
+		}
 		return s
 	}
 }

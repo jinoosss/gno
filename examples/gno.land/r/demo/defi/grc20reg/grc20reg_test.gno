@@ -29,11 +29,14 @@ func TestRegistry(cur realm, t *testing.T) {
 	got = Render("")
 	urequire.True(t, strings.Contains(got, expected))
 
+	// This token was created with grc20.NewToken, so the registry issued it no
+	// identifier and has no emitter to vouch for.
 	expected = `# TestToken
 - symbol: **TST**
 - realm: [gno.land/r/demo/foo](/r/demo/foo).TST
 - decimals: 4
 - total supply: 1234567
+- events emitted by: not issued by this registry
 `
 	got = Render(key)
 	urequire.Equal(t, expected, got)

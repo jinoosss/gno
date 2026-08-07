@@ -1,6 +1,7 @@
 package grc20reg
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 
@@ -68,4 +69,60 @@ func TestRegisterReportsWhetherTheRegistryIssuedTheIdentifier(cur realm, t *test
 	Register(cross(cur), legacy, "")
 	_, ok = IssuedTo(legacy.ID())
 	uassert.False(t, ok, "a token grc20 identified itself must not appear as registry-issued")
+}
+
+// The register event says which kind of token was registered, but only to
+// whoever was listening. EmitterPath answers the same question afterwards, from
+// the same records, so a consumer that arrived late is not stuck trusting what
+// the token says about itself.
+func TestEmitterPathReportsWhoStampsTheEvents(cur realm, t *testing.T) {
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/emitpathowned"))
+	owned, _ := grc20.NewTokenWithEmitter("Owned", "OWN", 6, Emitter(), cur)
+	ownedKey := Register(cross(cur), owned, "")
+
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/emitpathlegacy"))
+	legacy, _ := grc20.NewToken("Legacy", "LEG", 6, 0, cur)
+	legacyKey := Register(cross(cur), legacy, "")
+
+	path, ok := EmitterPath(ownedKey)
+	uassert.True(t, ok, "a token this registry issued must be attestable")
+	uassert.Equal(t, selfPkgPath, path)
+
+	// The registry can only attest for what it issued. A token that emits for
+	// itself and one routed through a different registry are the same answer
+	// here, because telling them apart would mean trusting the token.
+	path, ok = EmitterPath(legacyKey)
+	uassert.False(t, ok, "a token grc20 identified itself must not be attested")
+	uassert.Equal(t, "", path)
+
+	path, ok = EmitterPath("gno.land/r/demo/nosuchrealm.NONE")
+	uassert.False(t, ok)
+	uassert.Equal(t, "", path)
+}
+
+// selfPkgPath is written out rather than read from a frame, so pin it to the
+// value Register derives from the live one. cur is this realm's own here: no
+// testing.SetRealm has run.
+func TestSelfPkgPathMatchesTheRealm(cur realm, t *testing.T) {
+	uassert.Equal(t, cur.PkgPath(), selfPkgPath)
+}
+
+// A NewToken id ends in seqid.ID.String(), always exactly 7 or 13 characters, so
+// a decimal sequence of either width is one grc20.NewToken could reproduce.
+// nextSequence steps over both bands, which is what lets IssuedTo hold by
+// construction instead of by "nobody will ever mint a million tokens".
+func TestNextSequenceSkipsWidthsNewTokenCouldReproduce(t *testing.T) {
+	uassert.Equal(t, int64(1), nextSequence(0))
+	uassert.Equal(t, int64(999999), nextSequence(999998))
+
+	// 1000000 is seqid.ID(1<<30).String(); the whole 7-digit band goes with it.
+	uassert.Equal(t, int64(10000000), nextSequence(999999))
+	uassert.Equal(t, int64(10000000000000), nextSequence(999999999999))
+
+	for _, n := range []int64{0, 999999, 999999999999, 10000000, 42} {
+		next := nextSequence(n)
+		width := len(strconv.FormatInt(next, 10))
+		uassert.True(t, width != 7 && width != 13, "sequence must not land on a seqid width")
+		uassert.True(t, next > n, "sequence must advance")
+	}
 }

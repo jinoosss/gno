@@ -120,15 +120,40 @@ func NewTokenWithEmitter(name, symbol string, decimals int, reg Emitter, rlm rea
 	return token, ledger
 }
 
-// emit routes an event through the token's registry when it has one, so the VM
-// stamps the registry's pkg_path on it, and falls back to emitting under grc20's
-// own path otherwise.
-func (tok *Token) emit(kind string, attrs ...string) {
+// emitTransfer routes a Transfer event through the token's registry when it has
+// one, so the VM stamps the registry's pkg_path on it, and falls back to
+// emitting under grc20's own path otherwise.
+//
+// The registry writes the "token" attribute from the identifier it bound to this
+// token; grc20 does not pass one. That is what keeps a registry-stamped event
+// tied to an identifier the registry actually issued — see emitter.gno.
+func (tok *Token) emitTransfer(from, to address, amount int64) {
 	if tok.emitter != nil {
-		tok.emitter.Emit(kind, attrs...)
+		tok.emitter.EmitTransfer(from, to, amount)
 		return
 	}
-	chain.Emit(kind, attrs...)
+	chain.Emit(
+		TransferEvent,
+		"token", tok.id,
+		"from", string(from),
+		"to", string(to),
+		"value", strconv.Itoa(int(amount)),
+	)
+}
+
+// emitApproval is emitTransfer's counterpart for Approval events.
+func (tok *Token) emitApproval(owner, spender address, amount int64) {
+	if tok.emitter != nil {
+		tok.emitter.EmitApproval(owner, spender, amount)
+		return
+	}
+	chain.Emit(
+		ApprovalEvent,
+		"token", tok.id,
+		"owner", string(owner),
+		"spender", string(spender),
+		"value", strconv.Itoa(int(amount)),
+	)
 }
 
 // validName reports whether name is a valid display name: non-empty,
@@ -278,13 +303,7 @@ func (led *PrivateLedger) Transfer(from, to address, amount int64) error {
 		led.balances.Set(string(from), newFromBalance)
 	}
 
-	led.token.emit(
-		TransferEvent,
-		"token", led.token.ID(),
-		"from", from.String(),
-		"to", to.String(),
-		"value", strconv.Itoa(int(amount)),
-	)
+	led.token.emitTransfer(from, to, amount)
 
 	return nil
 }
@@ -328,13 +347,7 @@ func (led *PrivateLedger) Approve(owner, spender address, amount int64) error {
 
 	led.allowances.Set(allowanceKey(owner, spender), amount)
 
-	led.token.emit(
-		ApprovalEvent,
-		"token", led.token.ID(),
-		"owner", string(owner),
-		"spender", string(spender),
-		"value", strconv.Itoa(int(amount)),
-	)
+	led.token.emitApproval(owner, spender, amount)
 
 	return nil
 }
@@ -359,13 +372,7 @@ func (led *PrivateLedger) Mint(addr address, amount int64) error {
 
 	led.balances.Set(string(addr), newBalance)
 
-	led.token.emit(
-		TransferEvent,
-		"token", led.token.ID(),
-		"from", "",
-		"to", string(addr),
-		"value", strconv.Itoa(int(amount)),
-	)
+	led.token.emitTransfer("", addr, amount)
 
 	return nil
 }
@@ -393,13 +400,7 @@ func (led *PrivateLedger) Burn(addr address, amount int64) error {
 		led.balances.Set(string(addr), newBalance)
 	}
 
-	led.token.emit(
-		TransferEvent,
-		"token", led.token.ID(),
-		"from", string(addr),
-		"to", "",
-		"value", strconv.Itoa(int(amount)),
-	)
+	led.token.emitTransfer(addr, "", amount)
 
 	return nil
 }
