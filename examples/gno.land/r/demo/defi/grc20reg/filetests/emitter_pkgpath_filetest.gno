@@ -15,7 +15,7 @@ import (
 )
 
 func main(cur realm) {
-	owned, ownedLedger := grc20.NewTokenWithEmitter("Owned", "OWN", 6, grc20reg.Emitter(), cur)
+	owned, ownedLedger := grc20reg.NewToken(0, cur, "Owned", "OWN", 6)
 	legacy, legacyLedger := grc20.NewToken("Legacy", "LEG", 6, 0, cur)
 
 	println("owned  id:", owned.ID())

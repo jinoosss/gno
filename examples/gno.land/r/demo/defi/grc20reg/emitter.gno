@@ -13,7 +13,7 @@ import (
 //
 // A token realm opts in at construction:
 //
-//	Token, ledger := grc20.NewTokenWithEmitter("Foo", "FOO", 4, grc20reg.Emitter(), cur)
+//	Token, ledger := grc20reg.NewToken(0, cur, "Foo", "FOO", 4)
 //	key := grc20reg.Register(cross(cur), Token, "")
 //
 // What that buys, and why it holds:
@@ -27,6 +27,12 @@ import (
 //     from this package, so the VM stamps pkg_path = gno.land/r/demo/defi/grc20reg.
 //     A counterfeit grc20.Emitter cannot borrow that: its events carry its own
 //     path. Consumers filter on pkg_path and need trust nothing in-band.
+//
+//     This holds only because no TokenEmitter escapes: NewToken passes
+//     canonicalEmitter to grc20 itself, and Token.emitter is unexported with no
+//     accessor. Handing the emitter out — as an exported Emitter() accessor would
+//     — lets a caller wrap it, keep the handle grc20 was about to store, and emit
+//     a Transfer for a real token that moved nothing.
 //
 //   - Provenance checkable from this realm's own records. issued below maps every
 //     identifier this realm handed out to the realm it was handed to, so Register
@@ -60,12 +66,21 @@ var (
 	_ grc20.TokenEmitter = (*tokenEmitter)(nil)
 )
 
-// Emitter returns this realm as a grc20.Emitter, for grc20.NewTokenWithEmitter.
+// NewToken builds a token this realm issues the identifier of and emits the
+// events of. rlm must be the caller's own captured cur; the leading int is the
+// Teller convention for keeping rlm early without making this a crossing
+// function, which it must not be — see below.
 //
-// Unlike handing out a counter, handing out this value grants nothing: it holds
-// no state, and every method that mutates state runs here.
-func Emitter() grc20.Emitter {
-	return canonicalEmitter
+// The emitter is supplied here rather than by the caller, and that is the whole
+// point: grc20 returns the TokenEmitter into this function, not into the
+// caller's, so no code outside grc20 ever holds one. Staying non-crossing keeps
+// the creating realm on the frame, so Token.ID() and issued still name it.
+//
+// A caller that reaches grc20.NewTokenWithEmitter directly must pass an Emitter
+// of its own, whose events carry its own pkg_path — see
+// filetests/emitter_counterfeit_filetest.gno.
+func NewToken(_ int, rlm realm, name, symbol string, decimals int) (*grc20.Token, *grc20.PrivateLedger) {
+	return grc20.NewTokenWithEmitter(name, symbol, decimals, canonicalEmitter, rlm)
 }
 
 // IssueToken assigns a fresh identifier to a token being created by the calling

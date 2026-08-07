@@ -15,8 +15,8 @@ import (
 func TestEmitterNeverReissuesAnIdentifier(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/emitdup"))
 
-	first, _ := grc20.NewTokenWithEmitter("Same", "DUP", 6, Emitter(), cur)
-	second, _ := grc20.NewTokenWithEmitter("Same", "DUP", 6, Emitter(), cur)
+	first, _ := NewToken(0, cur, "Same", "DUP", 6)
+	second, _ := NewToken(0, cur, "Same", "DUP", 6)
 
 	t.Log("first :", first.ID())
 	t.Log("second:", second.ID())
@@ -27,7 +27,7 @@ func TestEmitterNeverReissuesAnIdentifier(cur realm, t *testing.T) {
 // obtain an identifier that appears to belong to another.
 func TestIdentifierIsNamespacedToTheCreatingRealm(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/emitns"))
-	tok, _ := grc20.NewTokenWithEmitter("Ns", "NS", 6, Emitter(), cur)
+	tok, _ := NewToken(0, cur, "Ns", "NS", 6)
 
 	uassert.True(t, strings.HasPrefix(tok.ID(), "gno.land/r/demo/emitns.NS."))
 
@@ -44,7 +44,7 @@ func TestCopyingTheEmitterCannotReplayAnIdentifier(cur realm, t *testing.T) {
 
 	snapshot := *canonicalEmitter // the move that breaks a struct-based generator
 
-	viaRegistry, _ := grc20.NewTokenWithEmitter("A", "CP", 6, Emitter(), cur)
+	viaRegistry, _ := NewToken(0, cur, "A", "CP", 6)
 	viaCopy, _ := grc20.NewTokenWithEmitter("B", "CP", 6, &snapshot, cur)
 
 	t.Log("via registry:", viaRegistry.ID())
@@ -56,7 +56,7 @@ func TestCopyingTheEmitterCannotReplayAnIdentifier(cur realm, t *testing.T) {
 // record rather than from anything the token claims about itself.
 func TestRegisterReportsWhetherTheRegistryIssuedTheIdentifier(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/emitowned"))
-	owned, _ := grc20.NewTokenWithEmitter("Owned", "OWN", 6, Emitter(), cur)
+	owned, _ := NewToken(0, cur, "Owned", "OWN", 6)
 	Register(cross(cur), owned, "")
 	to, ok := IssuedTo(owned.ID())
 	uassert.True(t, ok)
