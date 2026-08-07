@@ -19,17 +19,17 @@ import (
 // frame, origRealm is unforgeable: an external realm cannot fabricate a Token
 // claiming to belong to a different package.
 //
-// gen supplies the trailing id segment; see IDGenerator for why copying a generator
-// cannot yield a duplicate. gen.PackagePath() becomes the Token's
+// iss supplies the trailing id segment; see IDIssuer for why copying an issuer
+// cannot yield a duplicate. iss.PackagePath() becomes the Token's
 // IdentifierPath(), so a registry accepts only tokens whose ids came from its
-// own counter. Take gen from the registry you intend to register with:
+// own counter. Take iss from the registry you intend to register with:
 //
-//	gen := grc20reg.IdentifierGenerator(cross(cur))
-//	Token, ledger := grc20.NewToken("Foo", "FOO", 4, gen, cur)
+//	iss := grc20reg.IdentifierIssuer(cross(cur))
+//	Token, ledger := grc20.NewToken("Foo", "FOO", 4, iss, cur)
 //	grc20reg.Register(cross(cur), Token, "")
 //
-// A realm that will not register its token can create its own generator instead.
-func NewToken(name, symbol string, decimals int, gen *IDGenerator, rlm realm) (*Token, *PrivateLedger) {
+// A realm that will not register its token can create its own issuer instead.
+func NewToken(name, symbol string, decimals int, iss *IDIssuer, rlm realm) (*Token, *PrivateLedger) {
 	if !rlm.IsCurrent() {
 		panic(ErrSpoofedRealm)
 	}
@@ -46,16 +46,16 @@ func NewToken(name, symbol string, decimals int, gen *IDGenerator, rlm realm) (*
 	if decimals < 0 || decimals > MaxDecimals {
 		panic(ErrInvalidDecimals)
 	}
-	// A zero-value &IDGenerator{} is constructible from outside this package,
+	// A zero-value &IDIssuer{} is constructible from outside this package,
 	// so check the field, not just the pointer.
-	if gen == nil || gen.nextID == nil {
-		panic(ErrNilGenerator)
+	if iss == nil || iss.nextID == nil {
+		panic(ErrNilIssuer)
 	}
-	id := gen.NextID()
+	id := iss.NextID()
 	ledger := &PrivateLedger{}
 	token := &Token{
 		id:             pkgPath + "." + symbol + "." + id,
-		identifierPath: gen.packagePath,
+		identifierPath: iss.packagePath,
 		name:           name,
 		symbol:         symbol,
 		decimals:       decimals,
@@ -127,7 +127,7 @@ func (tok *Token) ID() string {
 	return tok.id
 }
 
-// IdentifierPath returns the package path of the realm whose generator produced
+// IdentifierPath returns the package path of the realm whose issuer produced
 // the trailing segment of the token's id.
 func (tok *Token) IdentifierPath() string {
 	return tok.identifierPath

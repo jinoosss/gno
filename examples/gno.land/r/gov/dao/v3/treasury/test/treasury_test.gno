@@ -80,9 +80,9 @@ func registerGRC20Tokens(_ int, rlm realm, t *testing.T, tokenNames []string, to
 	)
 
 	for _, name := range tokenNames {
-		// Create the token. A fresh generator call per token gives each a distinct ID.
+		// Create the token. A fresh issuer call per token gives each a distinct ID.
 		symbol := strings.ToUpper(name)
-		token, ledger := grc20.NewToken(name, symbol, 0, grc20reg.IdentifierGenerator(cross(rlm)), rlm)
+		token, ledger := grc20.NewToken(name, symbol, 0, grc20reg.IdentifierIssuer(cross(rlm)), rlm)
 
 		// Register the token; the returned key is the (realm, symbol) pair.
 		key := grc20reg.Register(cross(rlm), token, symbol)

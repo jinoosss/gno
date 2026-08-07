@@ -49,8 +49,8 @@ func main(cur realm) {
 
 	// Define a token and the associated lister.
 	const amount = int64(1000)
-	// This token is never registered, so a self-created generator is enough.
-	selfGen := grc20.NewIDGenerator(0, cur, nextIDSeq)
+	// This token is never registered, so a self-created issuer is enough.
+	selfGen := grc20.NewIDIssuer(0, cur, nextIDSeq)
 	token, ledger := grc20.NewToken("TestToken", "TEST", 0, selfGen, cur)
 	ledger.Mint(ownerAddr, amount)
 

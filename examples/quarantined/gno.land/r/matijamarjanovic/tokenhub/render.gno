@@ -65,8 +65,8 @@ import (
 // grc20.NewToken and grc721.NewBasicNFT must be constructed from a realm
 // context (init or a crossing function) because they assert cur.IsCurrent().
 func init(cur realm) {
-	// GRC20 token — the id must come from grc20reg's generator to be registrable.
-	myToken, myLedger := grc20.NewToken("My Token", "MTK", 6, grc20reg.IdentifierGenerator(cross(cur)), cur)
+	// GRC20 token — the id must come from grc20reg's issuer to be registrable.
+	myToken, myLedger := grc20.NewToken("My Token", "MTK", 6, grc20reg.IdentifierIssuer(cross(cur)), cur)
 	myTokenPath := tokenhub.RegisterToken(myToken, "my_token")
 
 	// GRC721 NFT

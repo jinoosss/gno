@@ -13,12 +13,12 @@ import (
 	"gno.land/p/nt/urequire/v0"
 )
 
-// counterGenerator returns a generator backed by a fresh local counter. These
-// tokens are never registered, so a per-generator counter is enough; a test
-// needing several distinct ids draws them from one generator.
-func counterGenerator(cur realm) *IDGenerator {
+// counterIssuer returns an issuer backed by a fresh local counter. These
+// tokens are never registered, so a per-issuer counter is enough; a test
+// needing several distinct ids draws them from one issuer.
+func counterIssuer(cur realm) *IDIssuer {
 	n := 0
-	return NewIDGenerator(0, cur, func() string {
+	return NewIDIssuer(0, cur, func() string {
 		n++
 		return strconv.Itoa(n)
 	})
@@ -30,7 +30,7 @@ func counterGenerator(cur realm) *IDGenerator {
 // checks pass.
 func newTestToken(name, symbol string, decimals int, rlm realm) (tok *Token, adm *PrivateLedger) {
 	func(cur realm) {
-		tok, adm = NewToken(name, symbol, decimals, counterGenerator(cur), cur)
+		tok, adm = NewToken(name, symbol, decimals, counterIssuer(cur), cur)
 	}(cross(rlm))
 	return
 }
@@ -43,15 +43,15 @@ func TestTestImpl(cur realm, t *testing.T) {
 func TestNewTokenAllowsDuplicateSymbolInSameRealm(cur realm, t *testing.T) {
 	holder := testutils.TestAddress("holder")
 
-	// One generator called twice gives the two same-symbol tokens distinct IDs.
+	// One issuer called twice gives the two same-symbol tokens distinct IDs.
 	var (
 		first, second             *Token
 		firstLedger, secondLedger *PrivateLedger
 	)
 	func(cur realm) {
-		gen := counterGenerator(cur)
-		first, firstLedger = NewToken("Same", "DUP", 6, gen, cur)
-		second, secondLedger = NewToken("Same", "DUP", 6, gen, cur)
+		iss := counterIssuer(cur)
+		first, firstLedger = NewToken("Same", "DUP", 6, iss, cur)
+		second, secondLedger = NewToken("Same", "DUP", 6, iss, cur)
 	}(cross(cur))
 
 	urequire.True(t, first.ID() != second.ID(), "duplicate symbols should not force duplicate IDs")
@@ -62,10 +62,10 @@ func TestNewTokenAllowsDuplicateSymbolInSameRealm(cur realm, t *testing.T) {
 	urequire.Equal(t, int64(22), second.BalanceOf(holder))
 }
 
-func TestNewIDGeneratorRejectsNilNextID(cur realm, t *testing.T) {
+func TestNewIDIssuerRejectsNilNextID(cur realm, t *testing.T) {
 	r := revive(func() {
 		func(cur realm) {
-			NewIDGenerator(0, cur, nil)
+			NewIDIssuer(0, cur, nil)
 		}(cross(cur))
 	})
 	if r != ErrNilIDFunc {
@@ -73,29 +73,29 @@ func TestNewIDGeneratorRejectsNilNextID(cur realm, t *testing.T) {
 	}
 }
 
-func TestNewTokenRejectsZeroValueGenerator(cur realm, t *testing.T) {
-	// &IDGenerator{} is constructible from any package, so NewToken must reject
+func TestNewTokenRejectsZeroValueIssuer(cur realm, t *testing.T) {
+	// &IDIssuer{} is constructible from any package, so NewToken must reject
 	// it rather than dying on a nil call inside NextID.
-	for _, gen := range []*IDGenerator{nil, {}} {
+	for _, gen := range []*IDIssuer{nil, {}} {
 		r := revive(func() {
 			func(cur realm) {
 				NewToken("Zero", "ZRO", 6, gen, cur)
 			}(cross(cur))
 		})
-		if r != ErrNilGenerator {
-			t.Errorf("expected %v, got %v", ErrNilGenerator, r)
+		if r != ErrNilIssuer {
+			t.Errorf("expected %v, got %v", ErrNilIssuer, r)
 		}
 	}
 }
 
 func TestNextIDRejectsMalformedCodes(cur realm, t *testing.T) {
-	// A generator whose nextID returns something that would make Token.ID()
+	// A issuer whose nextID returns something that would make Token.ID()
 	// ambiguous is caught before it reaches a token. The dot matters most: ids
 	// are parsed on "." by fqname and by the registry's prefix check.
 	for _, id := range []string{"", "a.b", "a/b", "a b", strings.Repeat("x", MaxIDLen+1)} {
 		r := revive(func() {
 			func(cur realm) {
-				NewIDGenerator(0, cur, func() string { return id }).NextID()
+				NewIDIssuer(0, cur, func() string { return id }).NextID()
 			}(cross(cur))
 		})
 		if r != ErrInvalidID {
@@ -106,7 +106,7 @@ func TestNextIDRejectsMalformedCodes(cur realm, t *testing.T) {
 	// The accepted charset still admits the forms real issuers produce.
 	for _, id := range []string{"0000001", "abc-DEF_9", strings.Repeat("x", MaxIDLen)} {
 		func(cur realm) {
-			urequire.Equal(t, id, NewIDGenerator(0, cur, func() string { return id }).NextID())
+			urequire.Equal(t, id, NewIDIssuer(0, cur, func() string { return id }).NextID())
 		}(cross(cur))
 	}
 }

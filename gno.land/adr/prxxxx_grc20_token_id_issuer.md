@@ -1,4 +1,4 @@
-# GRC20 token ids: a generator that holds a closure, not a counter
+# GRC20 token ids: an issuer that holds a closure, not a counter
 
 ## Context
 
@@ -25,7 +25,7 @@ shadow, _ := grc20.NewToken("Shadow", "DUP", 6, &b, cur)
 // canonical.ID() == shadow.ID(), and both pass the trusted-issuer check
 ```
 
-Nor was it a same-transaction artifact: the generator reset its counter on each
+Nor was it a same-transaction artifact: that generator reset its counter on each
 height change, so one captured copy stayed in lockstep with the registry in
 every later block.
 
@@ -38,42 +38,42 @@ caller could copy.
 
 ## Decision
 
-Keep the generator and the API shape callers already know. Change what it
-*holds*: the counter stays in the creating realm, and the generator carries a
+Keep the issuer and the API shape callers already know. Change what it
+*holds*: the counter stays in the creating realm, and the issuer carries a
 function over it.
 
 ```go
 // p/demo/tokens/grc20
-type IDGenerator struct {
+type IDIssuer struct {
 	packagePath string        // owning realm, captured at construction
 	nextID      func() string // the owning realm's counter, advanced per call
 }
 
-func NewIDGenerator(_ int, rlm realm, nextID func() string) *IDGenerator
-func (g *IDGenerator) PackagePath() string
-func (g *IDGenerator) NextID() string
+func NewIDIssuer(_ int, rlm realm, nextID func() string) *IDIssuer
+func (i *IDIssuer) PackagePath() string
+func (i *IDIssuer) NextID() string
 ```
 
 `rlm.IsCurrent()` binds `packagePath` from the creating realm's live crossing
-frame, so no realm can create a generator attributed to another. `NewToken`
+frame, so no realm can create an issuer attributed to another. `NewToken`
 calls `NextID` once and records the path as the token's `IdentifierPath()`;
 `Register` accepts only tokens whose identifier path is the registry itself.
 
 The registry keeps its counter private and its accessor becomes crossing:
 
 ```go
-var codeSeq seqid.ID
+var idSeq seqid.ID
 
-func IdentifierGenerator(cur realm) *grc20.IDGenerator {
-	return grc20.NewIDGenerator(0, cur, nextCode)
+func IdentifierIssuer(cur realm) *grc20.IDIssuer {
+	return grc20.NewIDIssuer(0, cur, nextIDSeq)
 }
 
-func nextCode() string { return codeSeq.Next().String() }
+func nextIDSeq() string { return idSeq.Next().String() }
 ```
 
-Copying a generator now copies nothing that matters. Under the declaring-realm
-borrow rule `nextCode` runs with grc20reg's authority against grc20reg's counter
-no matter who holds the generator calling it, so every copy drives the *same*
+Copying an issuer now copies nothing that matters. Under the declaring-realm
+borrow rule `nextIDSeq` runs with grc20reg's authority against grc20reg's counter
+no matter who holds the issuer calling it, so every copy drives the *same*
 counter forward. The reproduction above yields `…DUP.0000001` and `…DUP.0000002`,
 and a captured copy falls further behind the live sequence each block rather
 than tracking it.
@@ -98,10 +98,10 @@ extracting a shared `/p/` issuer is the second user, not the first.
 
 ## Alternatives considered
 
-**Patch the generator in place.** More private fields, validation inside
+**Patch the issuer in place.** More private fields, validation inside
 `NextID`, more string comparisons. A copy bypasses `NextID` entirely by taking
 the fields wholesale; as long as the counter is reachable from the realm holding
-the generator it can be copied and replayed.
+the issuer it can be copied and replayed.
 
 **A crossing accessor returning a string** (`NextTokenID(cross(cur)) string`).
 Removes the copyable state, but one returned string can be passed to two
@@ -123,7 +123,7 @@ code to double-spend, because a copy that calls `NextID` just gets the next one.
 **Trust the counter's monotonicity alone, with no closure indirection.**
 `seqid.ID.Next()` never repeats — but that is a statement about a *single*
 counter. The failure mode is a *forked* counter. Verified side by side: a
-generator holding the counter in a field lets two copies mint tokens with
+issuer holding the counter in a field lets two copies mint tokens with
 identical ids; one holding the creating realm's closure does not.
 
 **Drop ids and let the registry reject duplicates.** Migration-free, but leaves
@@ -132,17 +132,18 @@ cannot distinguish from the registered token's.
 
 ## Consequences
 
-- `grc20reg.IdentifierGenerator` keeps its name but becomes crossing: call sites
-  change from `IdentifierGenerator()` to `IdentifierGenerator(cross(cur))`.
+- `grc20reg.IdentifierGenerator()` becomes `grc20reg.IdentifierIssuer(cross(cur))`:
+  renamed for what it now returns, and crossing so the issuer is bound to a live
+  frame rather than read out of realm state.
 - `Token.IdentifierPath()` keeps its name and meaning. `p/onbloc/identifier` is
   removed; the core token standard no longer depends on a personal namespace.
-- A realm that will not register its token can create its own generator instead
+- A realm that will not register its token can create its own issuer instead
   of depending on `r/demo/defi/grc20reg`. Such a token records itself as its
   identifier path and is not registrable — the two usage patterns are now
   distinguishable rather than contradictory. The earlier attempt shipped docs and
-  a filetest recommending a realm-local generator while `Register` demanded the
+  a filetest recommending a realm-local issuer while `Register` demanded the
   registry's, making every token built as documented permanently unregistrable.
-- Holding a generator grants no more than calling `IdentifierGenerator` again
+- Holding an issuer grants no more than calling `IdentifierIssuer` again
   would, so one may be stored or passed on freely.
 - `nextID` must advance state the creating realm owns. This is documented, not
   enforced — no mechanism can enforce it, since `/p/` packages have no storage
@@ -150,7 +151,7 @@ cannot distinguish from the registered token's.
   than prevented: a degenerate `nextID` produces tokens whose `IdentifierPath()`
   is the offending realm itself, which `Register` rejects, so the damage is
   confined to that realm's own unregistered tokens.
-- `&grc20.IDGenerator{}` is constructible from any package (the type is exported,
+- `&grc20.IDIssuer{}` is constructible from any package (the type is exported,
   its fields are not), so `NewToken` checks the `nextID` field rather than only
   the pointer; otherwise it would die on a nil call inside `NextID`.
 - Registry keys are unchanged from master (`wugnot` stays

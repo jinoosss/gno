@@ -19,18 +19,18 @@ var (
 	idSeq seqid.ID // id counter; only nextIDSeq, a closure over it, leaves this realm
 )
 
-// IdentifierGenerator returns a generator backed by the registry's counter.
+// IdentifierIssuer returns an issuer backed by the registry's counter.
 // Tokens built with it carry grc20reg as their IdentifierPath(), which is what
 // Register requires:
 //
-//	gen := grc20reg.IdentifierGenerator(cross(cur))
-//	Token, ledger := grc20.NewToken(name, symbol, decimals, gen, cur)
+//	iss := grc20reg.IdentifierIssuer(cross(cur))
+//	Token, ledger := grc20.NewToken(name, symbol, decimals, iss, cur)
 //	key := grc20reg.Register(cross(cur), Token, "")
 //
-// Holding a generator grants no more than calling this again would — it draws
+// Holding an issuer grants no more than calling this again would — it draws
 // from the counter without revealing or forking it.
-func IdentifierGenerator(cur realm) *grc20.IDGenerator {
-	return grc20.NewIDGenerator(0, cur, nextIDSeq)
+func IdentifierIssuer(cur realm) *grc20.IDIssuer {
+	return grc20.NewIDIssuer(0, cur, nextIDSeq)
 }
 
 // nextIDSeq advances the registry's counter. Declared in this realm, so the
@@ -46,7 +46,7 @@ func nextIDSeq() string {
 // register two tokens under the same symbol (overwrite/alias guard). slug is
 // recorded in the register event only.
 //
-// The id must have come from IdentifierGenerator; one produced anywhere else is
+// The id must have come from IdentifierIssuer; one produced anywhere else is
 // not from this counter and could collide with one that is.
 func Register(cur realm, token *grc20.Token, slug string) string {
 	if token == nil {
@@ -63,9 +63,9 @@ func Register(cur realm, token *grc20.Token, slug string) string {
 		panic("grc20reg: token must be registered from its own realm")
 	}
 	// PackagePath() is bound under IsCurrent, so no other realm can create a
-	// generator claiming this one.
+	// issuer claiming this one.
 	if token.IdentifierPath() != cur.PkgPath() {
-		panic("grc20reg: token id not issued by the registry generator")
+		panic("grc20reg: token id not issued by the registry issuer")
 	}
 	if registry.Has(key) {
 		panic("grc20reg: token already registered")
