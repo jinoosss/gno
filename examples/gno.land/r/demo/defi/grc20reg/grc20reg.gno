@@ -44,8 +44,9 @@ func nextIDSeq() string {
 }
 
 // Register records token under its rlmPath.symbol key and returns that key.
-// Token.ID() carries a trailing generated id (rlmPath.symbol.<id>) that keeps
-// token identities/events unique, but the registry deliberately keys by
+// Token.ID() carries a trailing emitter path and issued id
+// (rlmPath.symbol.emitterPath:id) that keeps token identities/events unique,
+// but the registry deliberately keys by
 // rlmPath.symbol so lookups don't need to know the id, and so a realm cannot
 // register two tokens under the same symbol (overwrite/alias guard). slug is
 // recorded in the register event only.
@@ -61,14 +62,14 @@ func Register(cur realm, token *grc20.Token, slug string) string {
 	}
 	rlmPath := cur.Previous().PkgPath()
 	key := fqname.Construct(rlmPath, token.GetSymbol())
-	// Token.ID() == key + "." + <id>; verify the token originates from
+	// Token.ID() begins with key + "."; verify the token originates from
 	// the registering realm and symbol.
 	if !strings.HasPrefix(token.ID(), key+".") {
 		panic("grc20reg: token must be registered from its own realm")
 	}
 	// PackagePath() is bound under IsCurrent, so no other realm can build an
 	// Emitter claiming this one; a token that carries this path therefore drew
-	// its id from idSeq below and routes its events through recordEvent.
+	// its id from idSeq and routes its events through RecordTokenEvent.
 	if token.EmitterPath() != cur.PkgPath() {
 		panic("grc20reg: token id not issued by the registry emitter")
 	}
