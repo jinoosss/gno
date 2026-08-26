@@ -16,12 +16,12 @@ import (
 // counterGenerator returns a generator backed by a fresh local counter. These
 // tokens are never registered, so a per-generator counter is enough; a test
 // needing several distinct ids draws them from one generator.
-func counterGenerator(cur realm) *IDGenerator {
+func counterGenerator(cur realm) *Emitter {
 	n := 0
-	return NewIDGenerator(0, cur, func() string {
+	return NewEmitter(0, cur, func() string {
 		n++
 		return strconv.Itoa(n)
-	})
+	}, nil)
 }
 
 // newTestToken constructs a Token. The IIFE same-realm cross
@@ -62,10 +62,10 @@ func TestNewTokenAllowsDuplicateSymbolInSameRealm(cur realm, t *testing.T) {
 	urequire.Equal(t, int64(22), second.BalanceOf(holder))
 }
 
-func TestNewIDGeneratorRejectsNilNextID(cur realm, t *testing.T) {
+func TestNewEmitterRejectsNilNextID(cur realm, t *testing.T) {
 	r := revive(func() {
 		func(cur realm) {
-			NewIDGenerator(0, cur, nil)
+			NewEmitter(0, cur, nil, nil)
 		}(cross(cur))
 	})
 	if r != ErrNilIDFunc {
@@ -74,16 +74,16 @@ func TestNewIDGeneratorRejectsNilNextID(cur realm, t *testing.T) {
 }
 
 func TestNewTokenRejectsZeroValueGenerator(cur realm, t *testing.T) {
-	// &IDGenerator{} is constructible from any package, so NewToken must reject
+	// &Emitter{} is constructible from any package, so NewToken must reject
 	// it rather than dying on a nil call inside NextID.
-	for _, gen := range []*IDGenerator{nil, {}} {
+	for _, gen := range []*Emitter{nil, {}} {
 		r := revive(func() {
 			func(cur realm) {
 				NewToken("Zero", "ZRO", 6, gen, cur)
 			}(cross(cur))
 		})
-		if r != ErrNilGenerator {
-			t.Errorf("expected %v, got %v", ErrNilGenerator, r)
+		if r != ErrNilEmitter {
+			t.Errorf("expected %v, got %v", ErrNilEmitter, r)
 		}
 	}
 }
@@ -95,7 +95,7 @@ func TestNextIDRejectsMalformedCodes(cur realm, t *testing.T) {
 	for _, id := range []string{"", "a.b", "a/b", "a b", strings.Repeat("x", MaxIDLen+1)} {
 		r := revive(func() {
 			func(cur realm) {
-				NewIDGenerator(0, cur, func() string { return id }).NextID()
+				NewEmitter(0, cur, func() string { return id }, nil).NextID()
 			}(cross(cur))
 		})
 		if r != ErrInvalidID {
@@ -106,7 +106,7 @@ func TestNextIDRejectsMalformedCodes(cur realm, t *testing.T) {
 	// The accepted charset still admits the forms real issuers produce.
 	for _, id := range []string{"0000001", "abc-DEF_9", strings.Repeat("x", MaxIDLen)} {
 		func(cur realm) {
-			urequire.Equal(t, id, NewIDGenerator(0, cur, func() string { return id }).NextID())
+			urequire.Equal(t, id, NewEmitter(0, cur, func() string { return id }, nil).NextID())
 		}(cross(cur))
 	}
 }

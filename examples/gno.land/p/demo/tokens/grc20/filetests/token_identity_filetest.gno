@@ -17,8 +17,8 @@ func nextIDSeq() string {
 	return tokenIDSeq.Next().String()
 }
 
-func generator(cur realm) *grc20.IDGenerator {
-	return grc20.NewIDGenerator(0, cur, nextIDSeq)
+func generator(cur realm) *grc20.Emitter {
+	return grc20.NewEmitter(0, cur, nextIDSeq, nil)
 }
 
 func main(cur realm) {
@@ -51,7 +51,7 @@ func main(cur realm) {
 	secondLedger.Approve(holder, spender, 2)
 }
 
-func newToken(cur realm, gen *grc20.IDGenerator) (*grc20.Token, *grc20.PrivateLedger) {
+func newToken(cur realm, gen *grc20.Emitter) (*grc20.Token, *grc20.PrivateLedger) {
 	return grc20.NewToken("Same", "DUP", 6, gen, cur)
 }
 
@@ -62,7 +62,7 @@ func newToken(cur realm, gen *grc20.IDGenerator) (*grc20.Token, *grc20.PrivateLe
 //     "attrs": [
 //       {
 //         "key": "token",
-//         "value": "gno.land/r/demo/grc20identity.DUP.0000001"
+//         "value": "gno.land/r/demo/grc20identity.DUP.gno.land/r/demo/grc20identity:0000001"
 //       },
 //       {
 //         "key": "name",
@@ -84,7 +84,51 @@ func newToken(cur realm, gen *grc20.IDGenerator) (*grc20.Token, *grc20.PrivateLe
 //     "attrs": [
 //       {
 //         "key": "token",
-//         "value": "gno.land/r/demo/grc20identity.DUP.0000002"
+//         "value": "gno.land/r/demo/grc20identity.DUP.gno.land/r/demo/grc20identity:0000002"
+//       },
+//       {
+//         "key": "name",
+//         "value": "Same"
+//       },
+//       {
+//         "key": "symbol",
+//         "value": "DUP"
+//       },
+//       {
+//         "key": "decimals",
+//         "value": "6"
+//       }
+//     ],
+//     "pkg_path": "gno.land/p/demo/tokens/grc20"
+//   },
+//   {
+//     "type": "NewToken",
+//     "attrs": [
+//       {
+//         "key": "token",
+//         "value": "gno.land/r/demo/grc20identity.DUP.gno.land/r/demo/grc20identity:0000003"
+//       },
+//       {
+//         "key": "name",
+//         "value": "Same"
+//       },
+//       {
+//         "key": "symbol",
+//         "value": "DUP"
+//       },
+//       {
+//         "key": "decimals",
+//         "value": "6"
+//       }
+//     ],
+//     "pkg_path": "gno.land/p/demo/tokens/grc20"
+//   },
+//   {
+//     "type": "NewToken",
+//     "attrs": [
+//       {
+//         "key": "token",
+//         "value": "gno.land/r/demo/grc20identity.DUP.gno.land/r/demo/grc20identity:0000004"
 //       },
 //       {
 //         "key": "name",
