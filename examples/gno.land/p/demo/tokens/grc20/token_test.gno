@@ -345,3 +345,51 @@ func TestMintUntilOverflow(cur realm, t *testing.T) {
 		})
 	}
 }
+
+// recordingSink stands in for a registry realm. In a test it records under
+// grc20's own path like everything else here, so what it demonstrates is the
+// routing and the arguments — the pkg_path half is shown end-to-end by
+// r/demo/defi/grc20reg/filetests/emitter_pkgpath_filetest.gno.
+type recordingSink struct {
+	calls []string
+}
+
+func (s *recordingSink) RecordTokenEvent(id, kind string, attrs []string) {
+	s.calls = append(s.calls, kind+" "+id+" ["+strings.Join(attrs, " ")+"]")
+}
+
+func TestTokenRoutesEventsThroughTheEmittersRecorder(cur realm, t *testing.T) {
+	var (
+		sink        = &recordingSink{}
+		tok         *Token
+		ledger      *PrivateLedger
+		emitterPath string
+	)
+	func(cur realm) {
+		em := NewEmitter(0, cur, func() string { return "0000001" }, sink)
+		emitterPath = em.PackagePath()
+		tok, ledger = NewToken("Routed", "RTD", 6, em, cur)
+	}(cross(cur))
+
+	// The token reports the emitter as the path a consumer filters on, and the
+	// NewToken announcement already went through it.
+	uassert.Equal(t, emitterPath, tok.EventPath())
+	urequire.Equal(t, 1, len(sink.calls))
+	uassert.Equal(t, NewTokenEvent+" "+tok.ID()+" [name Routed symbol RTD decimals 6]", sink.calls[0])
+
+	// The ledger's own events follow the same route, and the "token" attribute
+	// is the recorder's to write — grc20 passes only the remaining pairs.
+	holder := testutils.TestAddress("holder")
+	urequire.NoError(t, ledger.Mint(holder, 7))
+	urequire.Equal(t, 2, len(sink.calls))
+	uassert.Equal(t, TransferEvent+" "+tok.ID()+" [from  to "+holder.String()+" value 7]", sink.calls[1])
+}
+
+func TestTokenWithoutRecorderEmitsUnderGrc20(cur realm, t *testing.T) {
+	// An Emitter with no recorder still issues ids; its tokens just emit under
+	// grc20's own path, which is what makes opting out visible in the stream.
+	tok, _ := newTestToken("Plain", "PLN", 6, cur)
+	uassert.Equal(t, PackagePath, tok.EventPath())
+	uassert.True(t, strings.HasPrefix(tok.ID(), PackagePath+".PLN."),
+		"a /p/-issued token names grc20 as both origin and emitter: "+tok.ID())
+}
