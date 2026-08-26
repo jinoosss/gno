@@ -16,21 +16,25 @@ import (
 var (
 	registry = avl.NewTree() // fqname rlmPath.symbol -> *Token
 
-	idSeq seqid.ID // id counter; only nextIDSeq, a closure over it, leaves this realm
+	idSeq seqid.ID // id counter; only nextIDSeq, a function over it, leaves this realm
 )
 
-// IdentifierGenerator returns a generator backed by the registry's counter.
-// Tokens built with it carry grc20reg as their IdentifierPath(), which is what
+// Emitter returns this realm as a grc20.Emitter: the id source for a token being
+// created, and the package whose path the VM will stamp on that token's events.
+// Tokens built with it carry grc20reg as their EmitterPath(), which is what
 // Register requires:
 //
-//	gen := grc20reg.IdentifierGenerator(cross(cur))
-//	Token, ledger := grc20.NewToken(name, symbol, decimals, gen, cur)
+//	em := grc20reg.Emitter(cross(cur))
+//	Token, ledger := grc20.NewToken(name, symbol, decimals, em, cur)
 //	key := grc20reg.Register(cross(cur), Token, "")
 //
-// Holding a generator grants no more than calling this again would — it draws
-// from the counter without revealing or forking it.
-func IdentifierGenerator(cur realm) *grc20.IDGenerator {
-	return grc20.NewIDGenerator(0, cur, nextIDSeq)
+// Holding the returned value grants no more than calling this again would. It
+// draws from the counter without revealing or forking it, and grc20.Emitter
+// keeps the recorder in an unexported field with no method that reaches it — so
+// a realm that keeps the handle it passed to NewToken still cannot record an
+// event under this realm's path. See emitter.gno.
+func Emitter(cur realm) *grc20.Emitter {
+	return grc20.NewEmitter(0, cur, nextIDSeq, canonicalRecorder)
 }
 
 // nextIDSeq advances the registry's counter. Declared in this realm, so the
@@ -46,8 +50,8 @@ func nextIDSeq() string {
 // register two tokens under the same symbol (overwrite/alias guard). slug is
 // recorded in the register event only.
 //
-// The id must have come from IdentifierGenerator; one produced anywhere else is
-// not from this counter and could collide with one that is.
+// The id must have come from Emitter(); one produced anywhere else is not from
+// this counter and could collide with one that is.
 func Register(cur realm, token *grc20.Token, slug string) string {
 	if token == nil {
 		panic("grc20reg: nil token")
@@ -62,10 +66,11 @@ func Register(cur realm, token *grc20.Token, slug string) string {
 	if !strings.HasPrefix(token.ID(), key+".") {
 		panic("grc20reg: token must be registered from its own realm")
 	}
-	// PackagePath() is bound under IsCurrent, so no other realm can create a
-	// generator claiming this one.
-	if token.IdentifierPath() != cur.PkgPath() {
-		panic("grc20reg: token id not issued by the registry generator")
+	// PackagePath() is bound under IsCurrent, so no other realm can build an
+	// Emitter claiming this one; a token that carries this path therefore drew
+	// its id from idSeq below and routes its events through recordEvent.
+	if token.EmitterPath() != cur.PkgPath() {
+		panic("grc20reg: token id not issued by the registry emitter")
 	}
 	if registry.Has(key) {
 		panic("grc20reg: token already registered")
@@ -78,6 +83,11 @@ func Register(cur realm, token *grc20.Token, slug string) string {
 		"pkgpath", rlmPath,
 		"slug", slug,
 		"symbol", token.GetSymbol(),
+		// The path the VM stamps on this token's events, so a consumer learns at
+		// registration time what to filter on. Register only admits tokens this
+		// realm issued, so it is always this realm — reported rather than
+		// assumed, since that is the whole claim being made.
+		"emitter", token.EventPath(),
 	)
 	return key
 }
@@ -160,6 +170,8 @@ func Render(path string) string {
 		s += ufmt.Sprintf("- realm: %s\n", rlmLink)
 		s += ufmt.Sprintf("- decimals: %d\n", token.GetDecimals())
 		s += ufmt.Sprintf("- total supply: %d\n", token.TotalSupply())
+		// What a consumer filters on to find this token's events. See emitter.gno.
+		s += "- events emitted by: " + md.InlineCode(token.EventPath()) + "\n"
 		return s
 	}
 }
