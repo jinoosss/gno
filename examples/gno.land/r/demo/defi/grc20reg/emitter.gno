@@ -60,6 +60,10 @@ var (
 // RecordTokenEvent emits one token event from this package, so the VM stamps
 // this realm's path onto it.
 //
+// The body repeats grc20's own fallback on purpose. Calling a shared helper
+// declared over there would put grc20's frame in front of chain.Emit and stamp
+// grc20's path, which is the one thing this method exists to avoid.
+//
 // id is written as the "token" attribute here rather than taken from attrs:
 // grc20 passes the identifier bound to the token whose ledger just acted, and
 // this method has no other source for it. kind and attrs come from grc20's own

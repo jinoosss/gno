@@ -104,6 +104,11 @@ func NewToken(name, symbol string, decimals int, em *Emitter, rlm realm) (*Token
 // realm that kept the Emitter it passed to NewToken still cannot reach the
 // recorder, which is what stops a captured handle from recording transfers no
 // ledger performed — see emitter.gno.
+//
+// The fallback below deliberately repeats what an EventRecorder does. The two
+// cannot share a helper: chain.Emit takes pkg_path from the frame that calls it,
+// so a recorder routed back through a function declared here would be stamped
+// grc20 and lose the label it exists to carry.
 func (tok *Token) emit(kind string, attrs ...string) {
 	if tok.recorder != nil {
 		tok.recorder.RecordTokenEvent(tok.id, kind, attrs)
