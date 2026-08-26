@@ -23,7 +23,7 @@ func nextIDSeq() string {
 func createToken(_ int, rlm realm, name string, toMint address) *grc20.Token {
 	// Create the token.
 	symbol := strings.ToUpper(name)
-	token, ledger := grc20.NewToken(name, symbol, 0, grc20.NewIDGenerator(0, rlm, nextIDSeq), rlm)
+	token, ledger := grc20.NewToken(name, symbol, 0, grc20.NewEmitter(0, rlm, nextIDSeq, nil), rlm)
 
 	// Mint the requested amount.
 	ledger.Mint(toMint, amount)

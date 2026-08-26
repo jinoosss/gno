@@ -29,7 +29,7 @@ func newTestNFT(_ int, rlm realm, name, symbol string) *grc721.BasicNFT {
 func TestTokenRegistration(cur realm, t *testing.T) {
 	resetState(t)
 
-	token, _ := grc20.NewToken("Test Token", "TEST", 6, grc20reg.IdentifierGenerator(cross(cur)), cur)
+	token, _ := grc20.NewToken("Test Token", "TEST", 6, grc20reg.Emitter(cross(cur)), cur)
 	key := RegisterToken(cross(cur), token, "test_token")
 
 	// The registry key is the token's rlmPath.symbol; Token.ID() extends it
@@ -83,7 +83,7 @@ func TestGRC1155Registration(cur realm, t *testing.T) {
 func TestBalanceRetrieval(cur realm, t *testing.T) {
 	resetState(t)
 
-	token, ledger := grc20.NewToken("Balance Token", "BAL", 6, grc20reg.IdentifierGenerator(cross(cur)), cur)
+	token, ledger := grc20.NewToken("Balance Token", "BAL", 6, grc20reg.Emitter(cross(cur)), cur)
 	key := RegisterToken(cross(cur), token, "balance_token")
 	holder := unsafe.CurrentRealm().Address()
 	ledger.Mint(holder, 1000)
@@ -133,7 +133,7 @@ func TestErrorCases(cur realm, t *testing.T) {
 func TestTokenListingFunctions(cur realm, t *testing.T) {
 	resetState(t)
 
-	grc20Token, _ := grc20.NewToken("Listing Token", "LST", 6, grc20reg.IdentifierGenerator(cross(cur)), cur)
+	grc20Token, _ := grc20.NewToken("Listing Token", "LST", 6, grc20reg.Emitter(cross(cur)), cur)
 	grc20Key := RegisterToken(cross(cur), grc20Token, "listing_token")
 
 	grc20List := GetAllTokens()
@@ -169,7 +169,7 @@ func TestTokenListingFunctions(cur realm, t *testing.T) {
 func TestMustGetFunctions(cur realm, t *testing.T) {
 	resetState(t)
 
-	token, _ := grc20.NewToken("Must Token", "MUST", 6, grc20reg.IdentifierGenerator(cross(cur)), cur)
+	token, _ := grc20.NewToken("Must Token", "MUST", 6, grc20reg.Emitter(cross(cur)), cur)
 	key := RegisterToken(cross(cur), token, "must_token")
 
 	retrievedToken := MustGetToken(key)
