@@ -89,6 +89,12 @@ type Token struct {
 	symbol string
 	// Number of decimal places used for the token's precision.
 	decimals int
+	// Package path of the realm whose Emitter produced the trailing id segment.
+	emitterPath string
+	// The emitter realm's event sink, or nil when this token's events are
+	// emitted under grc20's own pkg_path. Unexported with no accessor:
+	// recording an event is a capability — see emitter.gno.
+	recorder TokenEmitter
 	// Pointer to the PrivateLedger that manages balances and allowances.
 	ledger *PrivateLedger
 	// origRealm is the PkgPath of the realm that created the token, captured
@@ -129,6 +135,9 @@ var (
 	ErrInvalidName           = errors.New("invalid token name (empty, too long, or contains control chars)")
 	ErrInvalidSymbol         = errors.New("invalid token symbol (empty, too long, or contains chars outside [A-Za-z0-9_-])")
 	ErrInvalidDecimals       = errors.New("invalid decimals (must be 0..18)")
+	ErrNilEmitter            = errors.New("emitter must not be nil")
+	ErrNilIDFunc             = errors.New("id function must not be nil")
+	ErrInvalidID             = errors.New("invalid id (empty, too long, or contains chars outside [A-Za-z0-9_-])")
 )
 
 // Construction limits. Symbol is restricted to the same charset as
@@ -141,7 +150,13 @@ const (
 	MaxNameLen   = 64
 	MaxSymbolLen = 11
 	MaxDecimals  = 18
+	MaxIDLen     = 32
 )
+
+// PackagePath is this package's own import path: what the VM stamps as pkg_path
+// on the events grc20 emits itself. r/demo/defi/grc20reg/filetests/
+// emitter_pkgpath_filetest.gno checks it against the VM's stamp.
+const PackagePath = "gno.land/p/demo/tokens/grc20"
 
 const (
 	NewTokenEvent = "NewToken"

@@ -9,26 +9,48 @@ import (
 	"gno.land/p/nt/avl/v0"
 	"gno.land/p/nt/avl/v0/rotree"
 	"gno.land/p/nt/fqname/v0"
+	"gno.land/p/nt/seqid/v0"
 	"gno.land/p/nt/ufmt/v0"
 )
 
-var registry = avl.NewTree() // rlmPath.symbol -> *Token
+var (
+	registry = avl.NewTree() // fqname rlmPath.symbol -> *Token
 
-// Construction lives in grc20.NewToken — it takes rlm realm last
-// and binds origRealm from rlm.PkgPath() under an IsCurrent assertion.
-// The registry key is the canonical fqname rlmPath.symbol (one token per
-// realm+symbol), independent of Token.ID()'s trailing sequence id, so
-// callers can look a token up from the (realm, symbol) pair they already
-// know:
+	idSeq seqid.ID // id counter; only nextIDSeq, a function over it, leaves this realm
+)
+
+// Emitter returns this realm as a grc20.Emitter: the id source for a token being
+// created, and the package whose path the VM stamps on that token's events.
+// Tokens built with it carry grc20reg as their EmitterPath(), which is what
+// Register requires:
 //
-//	Token, ledger := grc20.NewToken(name, symbol, decimals, id, cur)
+//	em := grc20reg.Emitter(cross(cur))
+//	Token, ledger := grc20.NewToken(name, symbol, decimals, em, cur)
 //	key := grc20reg.Register(cross(cur), Token, "")
+//
+// Holding the returned value grants no more than calling this again would: it
+// draws from the counter without revealing or forking it, and the recorder sits
+// in a grc20.Emitter field no other package can reach.
+func Emitter(cur realm) *grc20.Emitter {
+	return grc20.NewEmitter(0, cur, nextIDSeq, canonicalEmitter)
+}
+
+// nextIDSeq advances the registry's counter. Declared in this realm, so the
+// declaring-realm borrow gives it authority over idSeq wherever it is called.
+func nextIDSeq() string {
+	return idSeq.Next().String()
+}
 
 // Register records token under its rlmPath.symbol key and returns that key.
-// Token.ID() carries a trailing sequence id (rlmPath.symbol.<id>) that keeps
-// token identities/events unique, but the registry deliberately keys by
+// Token.ID() carries a trailing emitter path and issued id
+// (rlmPath.symbol.emitterPath:id) that keeps token identities/events unique,
+// but the registry deliberately keys by
 // rlmPath.symbol so lookups don't need to know the id, and so a realm cannot
-// register two tokens under the same symbol (overwrite/alias guard).
+// register two tokens under the same symbol (overwrite/alias guard). slug is
+// recorded in the register event only.
+//
+// The id must have come from Emitter(); one produced anywhere else is not from
+// this counter and could collide with one that is.
 func Register(cur realm, token *grc20.Token, slug string) string {
 	if token == nil {
 		panic("grc20reg: nil token")
@@ -38,10 +60,15 @@ func Register(cur realm, token *grc20.Token, slug string) string {
 	}
 	rlmPath := cur.Previous().PkgPath()
 	key := fqname.Construct(rlmPath, token.GetSymbol())
-	// Token.ID() == key + "." + <id>; verify the token originates from the
-	// registering realm and symbol.
+	// Token.ID() begins with key + "."; verify the token originates from
+	// the registering realm and symbol.
 	if !strings.HasPrefix(token.ID(), key+".") {
 		panic("grc20reg: token must be registered from its own realm")
+	}
+	// PackagePath() is bound under IsCurrent, so a token carrying this path
+	// drew its id from idSeq and routes its events through Emit.
+	if token.EmitterPath() != cur.PkgPath() {
+		panic("grc20reg: token id not issued by the registry emitter")
 	}
 	if registry.Has(key) {
 		panic("grc20reg: token already registered")
@@ -50,9 +77,12 @@ func Register(cur realm, token *grc20.Token, slug string) string {
 	chain.Emit(
 		registerEvent,
 		"token_path", key,
+		"token_id", token.ID(),
 		"pkgpath", rlmPath,
 		"slug", slug,
 		"symbol", token.GetSymbol(),
+		// What a consumer filters on to find this token's events.
+		"emitter", token.EventPath(),
 	)
 	return key
 }
@@ -173,6 +203,7 @@ func Render(path string) string {
 		s += ufmt.Sprintf("- realm: %s\n", rlmLink)
 		s += ufmt.Sprintf("- decimals: %d\n", token.GetDecimals())
 		s += ufmt.Sprintf("- total supply: %d\n", token.TotalSupply())
+		s += "- events emitted by: " + md.InlineCode(token.EventPath()) + "\n"
 		return s
 	}
 }
