@@ -107,8 +107,10 @@ var (
 	Teller grc20.Teller
 )
 
+func nextID() string { return "0000001" }
+
 func init(cur realm) {
-	Token, adm = grc20.NewToken("Leaky", "LEAK", 4, 0, cur)
+	Token, adm = grc20.NewToken("Leaky", "LEAK", 4, grc20.NewEmitter(0, cur, nextID, nil), cur)
 	Teller = adm.CallerTeller()
 }
 

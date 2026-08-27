@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"gno.land/p/demo/tokens/grc20"
+	"gno.land/p/nt/seqid/v0"
 	"gno.land/p/nt/testutils/v0"
 	"gno.land/p/nt/uassert/v0"
 	"gno.land/p/nt/urequire/v0"
@@ -13,10 +14,13 @@ import (
 
 func TestRegistry(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/foo"))
-	token, ledger := grc20.NewToken("TestToken", "TST", 4, 0, cur)
+	token, ledger := grc20.NewToken("TestToken", "TST", 4, Emitter(cross(cur)), cur)
 	ledger.Mint(cur.Address(), 1234567)
-	// register
+	// The key is the (realm, symbol) pair; Token.ID() additionally carries the
+	// emitter path and the issued id, so the two are distinct values.
 	key := Register(cross(cur), token, "mySlug")
+	urequire.Equal(t, "gno.land/r/demo/foo.TST", key)
+	urequire.NotEqual(t, token.ID(), key)
 	regToken := Get(key)
 	urequire.True(t, regToken != nil, "expected to find a token") // fixme: use urequire.NotNil
 	urequire.Equal(t, regToken.GetSymbol(), "TST")
@@ -37,17 +41,36 @@ func TestRegistry(cur realm, t *testing.T) {
 - realm: [gno.land/r/demo/foo](/r/demo/foo).TST
 - decimals: 4
 - total supply: 1234567
+- events emitted by: ` + "`" + `gno.land/r/demo/defi/grc20reg` + "`" + `
 `
 	got = Render(key)
 	urequire.Equal(t, expected, got)
+}
 
-	// The registry keys by rlmPath.symbol, so a second token with the same
-	// symbol in the same realm is rejected even though its Token.ID() differs
-	// (distinct trailing sequence id). See TestRegisterRejectsOverwrite.
-	second, _ := grc20.NewToken("Second", "TST", 4, 1, cur)
-	urequire.NotEqual(t, token.ID(), second.ID()) // ids are decoupled from symbol
+func TestRegisterRejectsDuplicateSymbol(cur realm, t *testing.T) {
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/grc20reg_dup"))
+	first, _ := grc20.NewToken("First", "DUP", 4, Emitter(cross(cur)), cur)
+	second, _ := grc20.NewToken("Second", "DUP", 4, Emitter(cross(cur)), cur)
+
+	// The two tokens have distinct ids — each drew its own id — but they
+	// share a (realm, symbol) key, so only the first can be registered.
+	urequire.NotEqual(t, first.ID(), second.ID())
+	Register(cross(cur), first, "")
 	urequire.AbortsContains(t, cur, "token already registered", func() {
 		Register(cross(cur), second, "")
+	})
+}
+
+func TestRegisterRejectsSelfIssuedID(cur realm, t *testing.T) {
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/grc20reg_self_issued"))
+	// A realm can always build its own Emitter, but PackagePath() is bound
+	// under IsCurrent, so it cannot claim to be the registry's.
+	var ownSeq seqid.ID
+	own := grc20.NewEmitter(0, cur, func() string { return ownSeq.Next().String() }, nil)
+	token, _ := grc20.NewToken("Foreign", "FGN", 4, own, cur)
+
+	urequire.AbortsContains(t, cur, "not issued by the registry emitter", func() {
+		Register(cross(cur), token, "")
 	})
 }
 
@@ -71,7 +94,7 @@ func TestRegistryLookupGrantsNoSpendAuthority(cur realm, t *testing.T) {
 	consumer := chain.PackageAddress(consumerPath)
 
 	testing.SetRealm(testing.NewCodeRealm(tokenPath))
-	token, ledger := grc20.NewToken("TestToken", "TST", 4, 0, cur)
+	token, ledger := grc20.NewToken("TestToken", "TST", 4, Emitter(cross(cur)), cur)
 	urequire.NoError(t, ledger.Mint(alice, 1_000))
 	tokenKey := Register(cross(cur), token, "")
 	uassert.Equal(t, "TestToken", MustGet(tokenKey).GetName())
@@ -116,7 +139,7 @@ func TestRegistryConsumerCannotRedirectItsActor(cur realm, t *testing.T) {
 	consumer := chain.PackageAddress(consumerPath)
 
 	testing.SetRealm(testing.NewCodeRealm(tokenPath))
-	token, ledger := grc20.NewToken("ActorBinding", "ACTB", 4, 0, cur)
+	token, ledger := grc20.NewToken("ActorBinding", "ACTB", 4, Emitter(cross(cur)), cur)
 	urequire.NoError(t, ledger.Mint(alice, 1_000))
 	urequire.NoError(t, ledger.Mint(consumer, 500))
 	tokenKey := Register(cross(cur), token, "")
@@ -133,32 +156,60 @@ func TestRegistryConsumerCannotRedirectItsActor(cur realm, t *testing.T) {
 
 func TestRegisterRejectsOverwrite(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/grc20reg_overwrite"))
-	token, ledger := grc20.NewToken("Bar", "BAR", 4, 0, cur)
+	token, ledger := grc20.NewToken("Bar", "BAR", 4, Emitter(cross(cur)), cur)
 	ledger.Mint(cur.Address(), 11)
 	key := Register(cross(cur), token, "")
 
 	urequire.Equal(t, "BAR", Get(key).GetSymbol())
 	urequire.Equal(t, int64(11), Get(key).BalanceOf(cur.Address()))
 
-	replacement, _ := grc20.NewToken("Replacement", "BAR", 6, 0, cur)
+	replacement, _ := grc20.NewToken("Replacement", "BAR", 6, Emitter(cross(cur)), cur)
 	urequire.AbortsContains(t, cur, "token already registered", func() {
 		Register(cross(cur), replacement, "")
 	})
 }
 
-func TestRegisterRejectsAliasedTokenPaths(cur realm, t *testing.T) {
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/grc20reg_alias"))
-	token, _ := grc20.NewToken("Aliased Token", "ALIAS", 4, 0, cur)
-	Register(cross(cur), token, "first")
+func TestCopyingTheEmitterCannotReplayAnID(cur realm, t *testing.T) {
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/grc20reg_replay"))
 
-	urequire.AbortsContains(t, cur, "token already registered", func() {
-		Register(cross(cur), token, "second")
+	// The #6026 reproduction: the Emitter holds only a function over the
+	// registry's counter, so copies of it advance that same counter.
+	em := Emitter(cross(cur))
+	a, b := *em, *em
+
+	canonical, _ := grc20.NewToken("Canonical", "DUP", 6, &a, cur)
+	shadow, _ := grc20.NewToken("Shadow", "DUP", 6, &b, cur)
+	urequire.NotEqual(t, canonical.ID(), shadow.ID())
+
+	// Same for a freshly created one.
+	other, _ := grc20.NewToken("Other", "DUP", 6, Emitter(cross(cur)), cur)
+	urequire.NotEqual(t, canonical.ID(), other.ID())
+	urequire.NotEqual(t, shadow.ID(), other.ID())
+}
+
+func TestSelfIssuedCannotReplayARegistryID(cur realm, t *testing.T) {
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/grc20reg_replay_self"))
+
+	// The registry's counter is public chain state, so a realm can read the id
+	// off a registered token and have its own Emitter return that id verbatim.
+	// The issuer path is part of Token.ID(), so the two still differ.
+	canonical, _ := grc20.NewToken("Canonical", "RPL", 6, Emitter(cross(cur)), cur)
+	id := canonical.ID()[strings.LastIndex(canonical.ID(), ":")+1:]
+
+	own := grc20.NewEmitter(0, cur, func() string { return id }, nil)
+	shadow, _ := grc20.NewToken("Shadow", "RPL", 6, own, cur)
+	urequire.NotEqual(t, canonical.ID(), shadow.ID())
+
+	// Nor can it forge the registry's form: ':' is outside the id charset.
+	urequire.PanicsContains(t, cur, "invalid id", func() {
+		forged := grc20.NewEmitter(0, cur, func() string { return cur.PkgPath() + ":" + id }, nil)
+		grc20.NewToken("Forged", "RPL", 6, forged, cur)
 	})
 }
 
 func TestRegisterRejectsTokenFromDifferentRealm(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/grc20reg_id_source"))
-	token, _ := grc20.NewToken("Mismatch Token", "MISMATCH", 4, 0, cur)
+	token, _ := grc20.NewToken("Mismatch Token", "MISMATCH", 4, Emitter(cross(cur)), cur)
 
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/grc20reg_id_target"))
 	urequire.AbortsContains(t, cur, "token must be registered from its own realm", func() {
@@ -241,7 +292,7 @@ func TestWrappersBindActorToCallingRealm(cur realm, t *testing.T) {
 	registry := chain.PackageAddress("gno.land/r/demo/defi/grc20reg")
 
 	testing.SetRealm(testing.NewCodeRealm(tokenPath))
-	token, ledger := grc20.NewToken("WrapperActor", "WRPA", 4, 0, cur)
+	token, ledger := grc20.NewToken("WrapperActor", "WRPA", 4, Emitter(cross(cur)), cur)
 	urequire.NoError(t, ledger.Mint(consumer, 1_000))
 	urequire.NoError(t, ledger.Mint(registry, 1_000))
 	tokenKey := Register(cross(cur), token, "")
@@ -268,7 +319,7 @@ func TestWrapperActorIgnoresSigningUser(cur realm, t *testing.T) {
 	consumer := chain.PackageAddress(consumerPath)
 
 	testing.SetRealm(testing.NewCodeRealm(tokenPath))
-	token, ledger := grc20.NewToken("WrapperOrigin", "WRPO", 4, 0, cur)
+	token, ledger := grc20.NewToken("WrapperOrigin", "WRPO", 4, Emitter(cross(cur)), cur)
 	urequire.NoError(t, ledger.Mint(alice, 1_000))
 	urequire.NoError(t, ledger.Mint(consumer, 500))
 	tokenKey := Register(cross(cur), token, "")
@@ -295,7 +346,7 @@ func TestTransferFromSpendsAllowanceGrantedToCallingRealm(cur realm, t *testing.
 	consumer := chain.PackageAddress(consumerPath)
 
 	testing.SetRealm(testing.NewCodeRealm(tokenPath))
-	token, ledger := grc20.NewToken("WrapperAllowance", "WRPL", 4, 0, cur)
+	token, ledger := grc20.NewToken("WrapperAllowance", "WRPL", 4, Emitter(cross(cur)), cur)
 	urequire.NoError(t, ledger.Mint(alice, 1_000))
 	tokenKey := Register(cross(cur), token, "")
 

@@ -27,13 +27,18 @@ import (
 	"chain"
 
 	"gno.land/p/demo/tokens/grc20"
+	"gno.land/p/nt/seqid/v0"
 )
+
+var idSeq seqid.ID
+
+func nextID() string { return idSeq.Next().String() }
 
 // Stand-in for a token issued and registered by some other realm. Written as a
 // literal rather than imported: a filetest under a /p/ package that imports an
 // /r/ realm which itself imports that /p/ package forms a genesis dependency
 // cycle (grc20 -> realm -> grc20), which breaks package loading chain-wide.
-const canonical = "gno.land/r/demo/canonicaltoken.FOO.0000000"
+const canonical = "gno.land/r/demo/canonicaltoken.FOO.gno.land/r/demo/defi/grc20reg:0000001"
 
 func main(cur realm) {
 	println("canonical id:", canonical)
@@ -41,7 +46,7 @@ func main(cur realm) {
 	// Route 1: ask grc20 for a token using the canonical token's own
 	// name/symbol/decimals/id. NewToken derives the id prefix from the live
 	// crossing frame, so the id names *this* realm. No argument changes that.
-	impostor, impostorLedger := grc20.NewToken("Foo", "FOO", 4, 0, cur)
+	impostor, impostorLedger := grc20.NewToken("Foo", "FOO", 4, grc20.NewEmitter(0, cur, nextID, nil), cur)
 	println("impostor id: ", impostor.ID())
 	println("impostor claims canonical id:", impostor.ID() == canonical)
 
@@ -64,8 +69,8 @@ func main(cur realm) {
 }
 
 // Output:
-// canonical id: gno.land/r/demo/canonicaltoken.FOO.0000000
-// impostor id:  gno.land/r/demo/grc20provenance.FOO.0000000
+// canonical id: gno.land/r/demo/canonicaltoken.FOO.gno.land/r/demo/defi/grc20reg:0000001
+// impostor id:  gno.land/r/demo/grc20provenance.FOO.gno.land/r/demo/grc20provenance:0000001
 // impostor claims canonical id: false
 
 // Events:
@@ -75,7 +80,7 @@ func main(cur realm) {
 //     "attrs": [
 //       {
 //         "key": "token",
-//         "value": "gno.land/r/demo/grc20provenance.FOO.0000000"
+//         "value": "gno.land/r/demo/grc20provenance.FOO.gno.land/r/demo/grc20provenance:0000001"
 //       },
 //       {
 //         "key": "name",
@@ -97,7 +102,7 @@ func main(cur realm) {
 //     "attrs": [
 //       {
 //         "key": "token",
-//         "value": "gno.land/r/demo/grc20provenance.FOO.0000000"
+//         "value": "gno.land/r/demo/grc20provenance.FOO.gno.land/r/demo/grc20provenance:0000001"
 //       },
 //       {
 //         "key": "from",
@@ -119,7 +124,7 @@ func main(cur realm) {
 //     "attrs": [
 //       {
 //         "key": "token",
-//         "value": "gno.land/r/demo/canonicaltoken.FOO.0000000"
+//         "value": "gno.land/r/demo/canonicaltoken.FOO.gno.land/r/demo/defi/grc20reg:0000001"
 //       },
 //       {
 //         "key": "from",
